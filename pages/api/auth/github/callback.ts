@@ -1,7 +1,7 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
 import { createClient } from '@supabase/supabase-js';
-import { updateUserGithubToken } from '../../../../app/utils/database';
+import { updateUserGithubToken } from '../../../utils/database';
 
 // Initialize Supabase client
 const supabase = createClient(

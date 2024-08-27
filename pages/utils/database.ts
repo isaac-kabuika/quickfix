@@ -1,4 +1,4 @@
-import { store, updateUser, setGithubToken } from '../store';
+import { store, updateUser, setGithubToken } from '../../store';
 
 // Placeholder for database operations
 // Simple in-memory storage for demonstration
