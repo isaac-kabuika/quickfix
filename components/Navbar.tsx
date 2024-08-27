@@ -4,16 +4,25 @@ import Image from 'next/image'
 import { useAuth } from '../hooks/useAuth'
 import { supabase } from '../lib/supabaseClient'
 import { useTheme } from '../contexts/ThemeContext'
+import { useRouter } from 'next/router'
+import { signOut } from '../services/authService'
 
 export default function Navbar() {
   const { user, loading } = useAuth()
   const [dropdownOpen, setDropdownOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const { theme, toggleTheme } = useTheme()
+  const router = useRouter()
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    setDropdownOpen(false)
+    try {
+      await signOut()
+      // Redirect to home page after successful sign-out
+      router.push('/')
+    } catch (error) {
+      console.error('Error signing out:', error)
+      // Optionally, show an error message to the user
+    }
   }
 
   const getInitials = (name: string) => {

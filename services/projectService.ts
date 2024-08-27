@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabaseApiClient'
 import { createGithubClient } from '../lib/githubApiClient'
+import { store } from '../store'
 
 export const getProjects = async (userId: string) => {
   const { data, error } = await supabase
@@ -11,54 +12,55 @@ export const getProjects = async (userId: string) => {
   return data
 }
 
-export const createProject = async (projectData: {
-  name: string
-  owner_id: string
-  github_repo: string
-}) => {
-  try {
-    console.log('Creating project for user:', projectData.owner_id)
+export const createProject = async (projectData: any) => {
+  console.log('Creating project:', projectData)
 
-    // Fetch user data from the API route
-    const response = await fetch(`/api/getUserData?userId=${projectData.owner_id}`)
-    if (!response.ok) {
-      throw new Error('Failed to fetch user data')
-    }
-    const userData = await response.json()
+  const { data: session } = await supabase.auth.getSession()
+  console.log('Current session:', session)
 
-    const githubAccessToken = userData.user.app_metadata?.provider_token
+  if (!session || !session.session) {
+    throw new Error('No active session')
+  }
 
-    if (!githubAccessToken) {
-      console.error('GitHub access token not found for user:', projectData.owner_id)
-      throw new Error('GitHub access token not found. Please reconnect your GitHub account.')
-    }
+  const { user, provider_token } = session.session
 
-    const githubClient = createGithubClient(githubAccessToken)
+  if (!user) {
+    throw new Error('User not found')
+  }
 
-    // Verify repository access
-    const [owner, repo] = projectData.github_repo.split('/')
-    try {
-      await githubClient.getRepoContents(owner, repo)
-    } catch (error) {
-      console.error('Error accessing GitHub repository:', error)
-      throw new Error('Unable to access the specified GitHub repository. Please check the URL and your permissions.')
-    }
+  console.log('User:', user)
+  console.log('Provider token:', provider_token)
 
-    const { data, error } = await supabase
-      .from('projects')
-      .insert(projectData)
-      .single()
+  if (!provider_token) {
+    throw new Error('GitHub access token not found')
+  }
 
-    if (error) {
-      console.error('Error creating project in database:', error)
-      throw new Error(`Failed to create project in database: ${error.message}`)
-    }
+  // Use the GitHub token to create the repository
+  // ... (implement GitHub repository creation logic here)
+  // You can use the `provider_token` as the GitHub access token
 
-    return data
-  } catch (error) {
-    console.error('Error in createProject:', error)
+  // Prepare the project data, ensuring we don't include an ID
+  const newProjectData = {
+    name: projectData.name,
+    github_repo: projectData.github_repo,
+    owner_id: user.id,
+    // Add any other fields that are part of your project schema
+  }
+
+  // Then create the project in your database
+  const { data, error } = await supabase
+    .from('projects')
+    .insert([newProjectData])
+    .select()
+    .single() // This ensures we only get one result
+
+  if (error) {
+    console.error('Error creating project:', error)
     throw error
   }
+
+  console.log('Project created successfully:', data)
+  return data
 }
 
 export const getProject = async (projectId: string) => {

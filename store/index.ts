@@ -2,39 +2,58 @@ import { configureStore, createSlice, PayloadAction } from '@reduxjs/toolkit';
 
 interface User {
   id: string;
-  githubToken?: string;
+  email: string;
+  app_metadata: {
+    provider?: string;
+    providers?: string[];
+  };
+  user_metadata: {
+    avatar_url?: string;
+    full_name?: string;
+  };
 }
 
 interface UserState {
-  users: { [userId: string]: User };
+  user: User | null;
+  loading: boolean;
+  error: string | null;
 }
 
 const initialState: UserState = {
-  users: {},
+  user: null,
+  loading: false,
+  error: null,
 };
 
 const userSlice = createSlice({
-  name: 'users',
+  name: 'user',
   initialState,
   reducers: {
-    updateUser: (state: UserState, action: PayloadAction<User>) => {
-      const { id, ...userData } = action.payload;
-      state.users[id] = { ...state.users[id], ...userData };
+    setUser: (state, action: PayloadAction<User>) => {
+      state.user = action.payload;
+      state.loading = false;
+      state.error = null;
     },
-    setGithubToken: (state: UserState, action: PayloadAction<{ userId: string; token: string }>) => {
-      const { userId, token } = action.payload;
-      if (state.users[userId]) {
-        state.users[userId].githubToken = token;
-      }
+    setLoading: (state, action: PayloadAction<boolean>) => {
+      state.loading = action.payload;
+    },
+    setError: (state, action: PayloadAction<string>) => {
+      state.error = action.payload;
+      state.loading = false;
+    },
+    clearUser: (state) => {
+      state.user = null;
+      state.loading = false;
+      state.error = null;
     },
   },
 });
 
-export const { updateUser, setGithubToken } = userSlice.actions;
+export const { setUser, setLoading, setError, clearUser } = userSlice.actions;
 
 export const store = configureStore({
   reducer: {
-    users: userSlice.reducer,
+    user: userSlice.reducer,
   },
 });
 

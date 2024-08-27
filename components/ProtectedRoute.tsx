@@ -9,9 +9,9 @@ const ProtectedRoute = (WrappedComponent: React.ComponentType<any>) => {
 
     useEffect(() => {
       if (!loading && !user) {
-        router.replace('/auth')
+        router.replace('/') // Changed from '/login' to '/'
       }
-    }, [user, loading, router])
+    }, [user, loading])
 
     if (loading) {
       return <div>Loading...</div>

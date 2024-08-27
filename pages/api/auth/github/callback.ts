@@ -1,26 +1,11 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
-import { createClient } from '@supabase/supabase-js';
-import { updateUserGithubToken } from '../../../utils/database';
-
-// Initialize Supabase client
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-);
+import { supabase } from '../../../lib/supabaseClient';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { code } = req.query;
 
   try {
-    // Get the user's session using Supabase
-    const { data: { user } } = await supabase.auth.getUser();
-
-    if (!user) {
-      console.error('User not authenticated');
-      return res.redirect('/login?error=authentication_required');
-    }
-
     const tokenResponse = await axios.post(
       'https://github.com/login/oauth/access_token',
       {
@@ -35,8 +20,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     const { access_token } = tokenResponse.data;
 
-    console.log('Storing GitHub token for user:', user.id);
-    await updateUserGithubToken(user.id, access_token);
+    // Update the user's GitHub token in Supabase auth metadata
+    const { data, error } = await supabase.auth.updateUser({
+      app_metadata: { provider_token: access_token }
+    });
+
+    if (error) {
+      console.error('Error updating GitHub token:', error);
+      return res.redirect('/dashboard?error=github_token_update_failed');
+    }
+
     console.log('GitHub token stored successfully');
 
     // Use a server-side redirect

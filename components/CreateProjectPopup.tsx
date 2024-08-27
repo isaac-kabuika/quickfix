@@ -1,36 +1,43 @@
-import React, { useState } from 'react'
+import React, { useState, useCallback } from 'react'
 import { createProject } from '../services/projectService'
+import { debounce } from 'lodash' // Make sure to install lodash if not already installed
 
 interface CreateProjectPopupProps {
   onClose: () => void
   onProjectCreated: (project: any) => void
   userId: string
+  isCreating: boolean
 }
 
-export default function CreateProjectPopup({ onClose, onProjectCreated, userId }: CreateProjectPopupProps) {
+export default function CreateProjectPopup({ onClose, onProjectCreated, userId, isCreating }: CreateProjectPopupProps) {
   const [newProjectName, setNewProjectName] = useState('')
   const [newProjectRepo, setNewProjectRepo] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  const debouncedCreateProject = useCallback(
+    debounce(async (projectData) => {
+      try {
+        const newProject = await createProject(projectData)
+        onProjectCreated(newProject)
+        onClose()
+      } catch (err: any) {
+        console.error('Error creating project:', err)
+        setError(err.message || 'Failed to create project. Please try again.')
+      }
+    }, 300),
+    [onProjectCreated, onClose]
+  )
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault()
-    setIsLoading(true)
+    if (isCreating) return // Prevent multiple submissions
+
     setError('')
-    try {
-      const newProject = await createProject({
-        name: newProjectName,
-        owner_id: userId,
-        github_repo: newProjectRepo,
-      })
-      onProjectCreated(newProject)
-      onClose()
-    } catch (err: any) {
-      console.error('Error creating project:', err)
-      setError(err.message || 'Failed to create project. Please try again.')
-    } finally {
-      setIsLoading(false)
-    }
+    debouncedCreateProject({
+      name: newProjectName,
+      owner_id: userId,
+      github_repo: newProjectRepo,
+    })
   }
 
   return (
@@ -64,10 +71,10 @@ export default function CreateProjectPopup({ onClose, onProjectCreated, userId }
             </button>
             <button 
               type="submit" 
-              disabled={isLoading}
-              className="px-4 py-2 bg-primary-500 text-white rounded-md hover:bg-primary-600 transition-colors disabled:opacity-50"
+              disabled={isCreating}
+              className="bg-primary-500 text-white px-4 py-2 rounded-md hover:bg-primary-600 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
             >
-              {isLoading ? 'Creating...' : 'Create Project'}
+              {isCreating ? 'Creating...' : 'Create Project'}
             </button>
           </div>
         </form>

@@ -6,6 +6,8 @@ import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
 import { useAuth } from '../hooks/useAuth'
 import { ThemeProvider } from '../contexts/ThemeContext'
+import { Provider } from 'react-redux'
+import { store } from '../store'
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -30,20 +32,17 @@ function Layout({ children }: { children: React.ReactNode }) {
   )
 }
 
-function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
+function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <SessionProvider session={session}>
+    <Provider store={store}>
       <ThemeProvider>
-        <Head>
-          <title>QuickFix AI</title>
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-          <link rel="icon" href="/images/app-icon.svg" type="image/svg+xml" />
-        </Head>
-        <Layout>
-          <Component {...pageProps} />
-        </Layout>
+        <SessionProvider session={pageProps.session}>
+          <Layout>
+            <Component {...pageProps} />
+          </Layout>
+        </SessionProvider>
       </ThemeProvider>
-    </SessionProvider>
+    </Provider>
   )
 }
 
