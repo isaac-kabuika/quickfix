@@ -4,7 +4,6 @@ import { signUp, signInWithEmail, signInWithGitHub } from '../services/authServi
 import Head from 'next/head'
 import Image from 'next/image'
 import { useAuth } from '../hooks/useAuth'
-import { supabase } from '../lib/supabaseClient'
 
 export default function Auth() {
   const router = useRouter()
@@ -15,14 +14,10 @@ export default function Auth() {
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (user) {
-      router.replace('/dashboard')
+    if (user && !loading) {
+      router.push('/dashboard')
     }
-  }, [user, router])
-
-  if (loading) {
-    return <div>Loading...</div>
-  }
+  }, [user, loading, router])
 
   const handleEmailSubmit = async (e: React.FormEvent, isSignUp: boolean) => {
     e.preventDefault()
@@ -46,23 +41,18 @@ export default function Auth() {
   const handleGitHubSignIn = async () => {
     setIsSubmitting(true)
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'github',
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`
-        }
-      })
-      if (error) throw error
+      await signInWithGitHub()
+      // The user will be redirected to GitHub for authentication
     } catch (err) {
       setError('Failed to sign in with GitHub')
+      console.error(err)
     } finally {
       setIsSubmitting(false)
     }
   }
 
-  if (user) {
-    return null
-  }
+  if (loading) return <div>Loading...</div>
+  if (user) return null
 
   return (
     <>

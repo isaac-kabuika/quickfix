@@ -1,16 +1,14 @@
-import ProtectedRoute from '../components/ProtectedRoute'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { getProjects, createProject } from '../services/projectService'
 import ProjectList from '../components/ProjectList'
 import { supabase } from '../lib/supabaseApiClient'
+import ProtectedRoute from '../components/ProtectedRoute'
 
 const PROJECTS_PER_PAGE = 10
 
-export default ProtectedRoute(Dashboard)
-
 function Dashboard() {
-  const { user } = useAuth()
+  const { user, loading: authLoading } = useAuth()
   const [projects, setProjects] = useState<any[]>([])
   const [filteredProjects, setFilteredProjects] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
@@ -21,14 +19,14 @@ function Dashboard() {
   const [currentPage, setCurrentPage] = useState(1)
 
   useEffect(() => {
-    if (user) {
+    if (user && !authLoading) {
       loadProjects()
       subscribeToProjects()
     }
     return () => {
       supabase.removeAllChannels()
     }
-  }, [user])
+  }, [user, authLoading])
 
   useEffect(() => {
     const filtered = projects.filter(project => 
@@ -89,6 +87,7 @@ function Dashboard() {
     currentPage * PROJECTS_PER_PAGE
   )
 
+  if (authLoading || isLoading) return <div>Loading...</div>
   if (!user) return <div>Please sign in to view your dashboard.</div>
 
   return (
@@ -146,3 +145,5 @@ function Dashboard() {
     </div>
   )
 }
+
+export default ProtectedRoute(Dashboard)

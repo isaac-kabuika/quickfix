@@ -20,7 +20,7 @@ export default function Home() {
           <h1 className="text-5xl font-bold text-primary-400">Welcome to QuickFix AI</h1>
         </div>
         <p className="text-2xl mb-12 text-center text-gray-300">
-          Empower your non-technical team to fix small bugs instantly. No more waiting for engineers.
+          Empower your non-technical owners to fix small bugs instantly. No more waiting for engineers.
         </p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
@@ -82,7 +82,7 @@ export default function Home() {
             </div>
           </div>
           <p className="text-center text-gray-300 mt-4">
-            Our team brings expertise from leading tech companies to revolutionize bug fixing.
+            Our team brings expertise from leading tech companies to help you move faster.
           </p>
         </div>
       </main>
