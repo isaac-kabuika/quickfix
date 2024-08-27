@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getProjectFiles } from '../services/projectService'
-import sdk from '@stackblitz/sdk'
+import sdk, { Project, VM } from '@stackblitz/sdk'
 
 interface StackBlitzTesterProps {
   projectId: string
@@ -34,11 +34,14 @@ export default function StackBlitzTester({ projectId, userId, bugLocations }: St
     if (!files) return
 
     try {
-      const project = {
-        files,
+      const project: Project = {
+        files: Object.entries(files).reduce((acc, [key, value]) => {
+          acc[key] = value.content
+          return acc
+        }, {} as Record<string, string>),
         title: 'Bug Locator Test',
         description: 'Testing environment for bug reproduction',
-        template: 'node' as const
+        template: 'node'
       }
 
       const vm = await sdk.embedProject('stackblitz-container', project, {
@@ -51,7 +54,7 @@ export default function StackBlitzTester({ projectId, userId, bugLocations }: St
         const line = parseInt(lineStr, 10)
         if (!isNaN(line) && file) {
           try {
-            vm.editor?.setHighlights?.(file, [{ from: line, to: line }])
+            (vm.editor as any).setHighlights?.(file, [{ from: line, to: line }])
           } catch (err) {
             console.error(`Failed to set highlight for ${file}:${line}`, err)
           }

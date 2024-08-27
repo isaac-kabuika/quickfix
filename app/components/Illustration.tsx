@@ -1,3 +1,9 @@
+import { cn } from '../../lib/utils'; // Adjust the path as needed
+
+interface IllustrationProps extends React.HTMLAttributes<HTMLDivElement> {
+  className?: string;
+}
+
 const Illustration = ({ className, ...props }: IllustrationProps) => {
   return (
     <div

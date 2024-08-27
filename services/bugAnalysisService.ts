@@ -32,13 +32,16 @@ export const analyzeBug = async (projectId: string, bugReportId: string) => {
   const dependencyGraph = await getDependencyGraph(projectId)
   
   // Prepare code context for OpenAI
-  const codeContext = prepareCodeContext(files, dependencyGraph)
+  const codeContext = prepareCodeContext(
+    Object.entries(files).map(([path, { content }]) => ({ path, content })),
+    dependencyGraph
+  )
   
   // Analyze bug report using OpenAI
   const analysis = await analyzeCode(codeContext, bugReport.description)
   
   // Process the analysis and identify potential bug locations
-  const bugLocations = processBugAnalysis(analysis, files, dependencyGraph)
+  const bugLocations = processBugAnalysis(analysis, Object.entries(files).map(([path, { content }]) => ({ path, content })), dependencyGraph)
   
   // Suggest fix
   const suggestedFix = await suggestFix(codeContext, bugReport.description)

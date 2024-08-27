@@ -1,3 +1,5 @@
+import { styled } from '@stitches/react';
+
 const Card = styled('div', {
   // ... existing code ...
 

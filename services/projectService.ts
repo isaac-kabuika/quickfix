@@ -87,8 +87,8 @@ export const getProjectFiles = async (projectId: string, userId: string) => {
   const files = await githubClient.getRepoContents(owner, repo)
   
   // Convert GitHub API response to StackBlitz file format
-  return files.reduce((acc, file) => {
-    if (file.type === 'file') {
+  return files.reduce((acc: { [key: string]: { content: string } }, file) => {
+    if (file.type === 'file' && file.content) {
       acc[file.path] = { content: file.content }
     }
     return acc

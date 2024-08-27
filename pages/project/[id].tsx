@@ -9,7 +9,7 @@ import InviteTeamMember from '../../components/InviteTeamMember'
 import { supabase } from '../../lib/supabaseApiClient'
 import { useAuth } from '../../hooks/useAuth'
 
-export default function ProjectPage() {
+export function ProjectPage() {
   const router = useRouter()
   const { id } = router.query
   const { user } = useAuth()
