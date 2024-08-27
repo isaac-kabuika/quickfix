@@ -1,0 +1,25 @@
+<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#06B6D4;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#22D3EE;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  <rect width="100" height="100" fill="#1E293B" rx="20" ry="20"/>
+  <path d="M20,50 Q50,20 80,50" fill="none" stroke="url(#grad2)" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="20" cy="50" r="6" fill="white"/>
+  <circle cx="80" cy="50" r="6" fill="white"/>
+  
+  <!-- Animated middle node -->
+  <circle cx="50" cy="20" r="6" fill="white">
+    <animate 
+      attributeName="cy" 
+      values="20; 35; 35; 20"
+      keyTimes="0; 0.4; 0.6; 1"
+      dur="6s" 
+      repeatCount="indefinite" 
+      calcMode="spline"
+      keySplines="0.4 0 0.6 1; 0 0 1 1; 0.4 0 0.6 1"
+    />
+  </circle>
+</svg>
