@@ -1,17 +1,23 @@
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
-import { getProjects } from '../services/projectService'
+import { getProjects, deleteProject } from '../services/projectService'
 import ProjectList from '../components/ProjectList'
 import { supabase } from '../lib/supabaseApiClient'
 import ProtectedRoute from '../components/ProtectedRoute'
 import CreateProjectPopup from '../components/CreateProjectPopup'
 
+interface Project {
+  id: string;
+  name: string;
+  github_repo: string;
+}
+
 const PROJECTS_PER_PAGE = 10
 
 function Dashboard() {
   const { user, loading: authLoading } = useAuth()
-  const [projects, setProjects] = useState<any[]>([])
-  const [filteredProjects, setFilteredProjects] = useState<any[]>([])
+  const [projects, setProjects] = useState<Project[]>([])
+  const [filteredProjects, setFilteredProjects] = useState<Project[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState('')
   const [searchTerm, setSearchTerm] = useState('')
@@ -55,7 +61,7 @@ function Dashboard() {
       .channel('public:projects')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'projects' }, payload => {
         if (payload.new.owner_id === user.id) {
-          setProjects(currentProjects => [...currentProjects, payload.new])
+          setProjects(currentProjects => [...currentProjects, payload.new as Project])
         }
       })
       .subscribe()
@@ -65,10 +71,22 @@ function Dashboard() {
     setProjects([...projects, newProject])
   }
 
+  const handleDeleteProject = async (projectId: string) => {
+    if (!user) return
+    try {
+      await deleteProject(projectId)
+      setProjects(currentProjects => currentProjects.filter(project => project.id !== projectId))
+    } catch (err) {
+      setError('Failed to delete project')
+    }
+  }
+
   const paginatedProjects = filteredProjects.slice(
     (currentPage - 1) * PROJECTS_PER_PAGE,
     currentPage * PROJECTS_PER_PAGE
   )
+
+  const totalPages = Math.ceil(filteredProjects.length / PROJECTS_PER_PAGE)
 
   if (authLoading || isLoading) return <div className="flex justify-center items-center h-screen">Loading...</div>
   if (!user) return <div className="text-center text-red-500">Please sign in to view your dashboard.</div>
@@ -76,22 +94,35 @@ function Dashboard() {
   return (
     <div className="relative container mx-auto px-4 py-8 max-w-7xl">
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-8">
-        <h1 className="text-3xl font-bold mb-4 lg:mb-0 text-primary-400">Dashboard</h1>
-        <div className="flex flex-col lg:flex-row lg:items-center space-y-4 lg:space-y-0 lg:space-x-4">
+        <div className="relative w-full lg:w-64 mb-4 lg:mb-0">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search projects..."
-            className="w-full lg:w-64 p-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-800 dark:text-gray-200"
+            className="w-full p-2 pl-10 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-800 dark:text-gray-200"
           />
-          <button
-            onClick={() => setShowCreatePopup(true)}
-            className="bg-primary-500 text-white px-4 py-2 rounded-md hover:bg-primary-600 transition-colors"
+          <svg
+            className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500"
+            xmlns="http://www.w3.org/2000/svg"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
           >
-            Create New Project
-          </button>
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+            />
+          </svg>
         </div>
+        <button
+          onClick={() => setShowCreatePopup(true)}
+          className="bg-primary-500 text-white px-4 py-2 rounded-md hover:bg-primary-600 transition-colors"
+        >
+          Create New Project
+        </button>
       </div>
       
       {error && <p className="text-red-500 mb-4">{error}</p>}
@@ -109,25 +140,34 @@ function Dashboard() {
         </div>
       ) : (
         <>
-          <ProjectList projects={paginatedProjects} />
+          <ProjectList 
+            projects={paginatedProjects} 
+            onDeleteProject={handleDeleteProject}
+          />
           
-          <div className="flex justify-between items-center mt-4">
-            <button 
-              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-              disabled={currentPage === 1}
-              className="bg-primary-500 text-white px-4 py-2 rounded-md disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span>Page {currentPage}</span>
-            <button 
-              onClick={() => setCurrentPage(prev => prev + 1)}
-              disabled={currentPage * PROJECTS_PER_PAGE >= filteredProjects.length}
-              className="bg-primary-500 text-white px-4 py-2 rounded-md disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+          {totalPages > 1 && (
+            <div className="flex justify-center items-center mt-8 space-x-4">
+              <button 
+                onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                disabled={currentPage === 1}
+                className="text-gray-500 hover:text-primary-500 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <span className="text-sm text-gray-500">Page {currentPage} of {totalPages}</span>
+              <button 
+                onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                disabled={currentPage === totalPages}
+                className="text-gray-500 hover:text-primary-500 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
+          )}
         </>
       )}
 
