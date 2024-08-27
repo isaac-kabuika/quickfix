@@ -16,32 +16,49 @@ export const createProject = async (projectData: {
   owner_id: string
   github_repo: string
 }) => {
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('github_access_token')
-    .eq('id', projectData.owner_id)
-    .single()
-
-  if (userError) throw new Error('Failed to fetch user data')
-  if (!userData?.github_access_token) throw new Error('GitHub access token not found')
-
-  const githubClient = createGithubClient(userData.github_access_token)
-
-  // Verify repository access
-  const [owner, repo] = projectData.github_repo.split('/')
   try {
-    await githubClient.getRepoContents(owner, repo)
+    console.log('Creating project for user:', projectData.owner_id)
+
+    // Fetch user data from the API route
+    const response = await fetch(`/api/getUserData?userId=${projectData.owner_id}`)
+    if (!response.ok) {
+      throw new Error('Failed to fetch user data')
+    }
+    const userData = await response.json()
+
+    const githubAccessToken = userData.user.app_metadata?.provider_token
+
+    if (!githubAccessToken) {
+      console.error('GitHub access token not found for user:', projectData.owner_id)
+      throw new Error('GitHub access token not found. Please reconnect your GitHub account.')
+    }
+
+    const githubClient = createGithubClient(githubAccessToken)
+
+    // Verify repository access
+    const [owner, repo] = projectData.github_repo.split('/')
+    try {
+      await githubClient.getRepoContents(owner, repo)
+    } catch (error) {
+      console.error('Error accessing GitHub repository:', error)
+      throw new Error('Unable to access the specified GitHub repository. Please check the URL and your permissions.')
+    }
+
+    const { data, error } = await supabase
+      .from('projects')
+      .insert(projectData)
+      .single()
+
+    if (error) {
+      console.error('Error creating project in database:', error)
+      throw new Error(`Failed to create project in database: ${error.message}`)
+    }
+
+    return data
   } catch (error) {
-    throw new Error('Unable to access the specified GitHub repository. Please check the URL and your permissions.')
+    console.error('Error in createProject:', error)
+    throw error
   }
-
-  const { data, error } = await supabase
-    .from('projects')
-    .insert(projectData)
-    .single()
-
-  if (error) throw new Error('Failed to create project in database')
-  return data
 }
 
 export const getProject = async (projectId: string) => {

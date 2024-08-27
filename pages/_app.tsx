@@ -5,6 +5,7 @@ import Head from 'next/head'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
 import { useAuth } from '../hooks/useAuth'
+import { ThemeProvider } from '../contexts/ThemeContext'
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -14,14 +15,14 @@ function Layout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background-dark text-white">
+    <div className="flex min-h-screen bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark">
       {user && <Sidebar />}
       <div className="flex flex-col flex-grow">
         <Navbar />
         <main className="flex-grow p-4">
           {children}
         </main>
-        <footer className="bg-background-light py-4 text-center text-gray-400">
+        <footer className="bg-background-light dark:bg-background-dark py-4 text-center text-gray-400">
           © 2024 QuickFix AI. All rights reserved.
         </footer>
       </div>
@@ -32,14 +33,16 @@ function Layout({ children }: { children: React.ReactNode }) {
 function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
   return (
     <SessionProvider session={session}>
-      <Head>
-        <title>QuickFix AI</title>
-        <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <link rel="icon" href="/images/app-icon.svg" type="image/svg+xml" />
-      </Head>
-      <Layout>
-        <Component {...pageProps} />
-      </Layout>
+      <ThemeProvider>
+        <Head>
+          <title>QuickFix AI</title>
+          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+          <link rel="icon" href="/images/app-icon.svg" type="image/svg+xml" />
+        </Head>
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
+      </ThemeProvider>
     </SessionProvider>
   )
 }

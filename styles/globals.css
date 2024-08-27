@@ -3,6 +3,6 @@
 @tailwind utilities;
 
 html, body {
-  background-color: #000000; /* Changed to pure black */
+  @apply bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark;
   min-height: 100vh;
 }

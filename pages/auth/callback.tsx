@@ -21,26 +21,27 @@ export default function AuthCallback() {
           console.error('Error setting session:', error)
           router.push('/auth')
         } else if (data.session) {
-          router.push('/dashboard')
-        }
-      } else if (hash) {
-        const { data, error } = await supabase.auth.getSession()
-        if (error) {
-          console.error('Error getting session:', error)
-          router.push('/auth')
-        } else if (data.session) {
-          router.push('/dashboard')
-        } else {
-          // If there's no session, try to exchange the auth code for a session
-          const { data, error } = await supabase.auth.exchangeCodeForSession(hash.substring(1))
-          if (error) {
-            console.error('Error exchanging code for session:', error)
-            router.push('/auth')
-          } else if (data.session) {
-            router.push('/dashboard')
+          const { user } = data.session
+          if (user) {
+            // The GitHub access token is already stored in user.app_metadata
+            // by Supabase when using OAuth, so we don't need to store it separately.
+            // We can update other user data if needed:
+            const { error: updateError } = await supabase.auth.updateUser({
+              data: {
+                email: user.email,
+                // Add any other user data you want to store
+              }
+            })
+            
+            if (updateError) {
+              console.error('Error updating user data:', updateError)
+            }
           }
+          router.push('/dashboard')
         }
       } else {
+        // Handle other cases (e.g., error responses)
+        console.error('No access token or refresh token found in the URL')
         router.push('/auth')
       }
     }

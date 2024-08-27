@@ -5,32 +5,40 @@
       <stop offset="100%" style="stop-color:#818CF8;stop-opacity:1" />
     </linearGradient>
   </defs>
-  <rect width="100" height="100" fill="#000000" rx="20" ry="20"/>
+
+  <style>
+    @media (prefers-color-scheme: light) {
+      #background { fill: #F3F4F6; }
+      .graph-element { stroke: #1E293B; }
+    }
+    @media (prefers-color-scheme: dark) {
+      #background { fill: #111827; }
+      .graph-element { stroke: white; }
+    }
+  </style>
+
+  <!-- Background -->
+  <rect id="background" width="100" height="100" rx="20" ry="20"/>
   
   <!-- Graph nodes -->
-  <circle cx="50" cy="20" r="8" fill="white"/>
-  <circle cx="20" cy="50" r="8" fill="white"/>
-  <circle cx="80" cy="50" r="8" fill="white"/>
-  <circle cx="35" cy="80" r="8" fill="white"/>
-  <circle cx="65" cy="80" r="8" fill="white"/>
+  <circle cx="20" cy="50" r="7" fill="white" class="graph-element" stroke-width="2"/>
+  <circle cx="80" cy="50" r="7" fill="white" class="graph-element" stroke-width="2"/>
+  <circle cx="35" cy="80" r="7" fill="white" class="graph-element" stroke-width="2"/>
   
   <!-- Highlighted node -->
-  <circle cx="50" cy="50" r="12" fill="url(#grad1)">
-    <animate attributeName="r" values="12;14;12" dur="2s" repeatCount="indefinite"/>
+  <circle cx="50" cy="50" r="11" fill="url(#grad1)" stroke="white" stroke-width="2">
+    <animate attributeName="r" values="11;13;11" dur="2s" repeatCount="indefinite"/>
   </circle>
   
   <!-- Connections -->
-  <line x1="50" y1="20" x2="50" y2="50" stroke="white" stroke-width="2" opacity="0.6"/>
-  <line x1="20" y1="50" x2="50" y2="50" stroke="white" stroke-width="2" opacity="0.6"/>
-  <line x1="80" y1="50" x2="50" y2="50" stroke="white" stroke-width="2" opacity="0.6"/>
-  <line x1="35" y1="80" x2="50" y2="50" stroke="white" stroke-width="2" opacity="0.6"/>
-  <line x1="65" y1="80" x2="50" y2="50" stroke="white" stroke-width="2" opacity="0.6"/>
-  <line x1="20" y1="50" x2="80" y2="50" stroke="white" stroke-width="2" opacity="0.4"/>
-  <line x1="35" y1="80" x2="65" y2="80" stroke="white" stroke-width="2" opacity="0.4"/>
+  <line x1="27" y1="50" x2="39" y2="50" class="graph-element" stroke-width="2" opacity="0.6"/>
+  <line x1="73" y1="50" x2="61" y2="50" class="graph-element" stroke-width="2" opacity="0.6"/>
+  <line x1="38.5" y1="74" x2="46.5" y2="59" class="graph-element" stroke-width="2" opacity="0.6"/>
+  <line x1="27" y1="50" x2="73" y2="50" class="graph-element" stroke-width="2" opacity="0.4"/>
   
   <!-- Pulse effect on highlighted node -->
-  <circle cx="50" cy="50" r="16" fill="none" stroke="url(#grad1)" stroke-width="2" opacity="0.5">
-    <animate attributeName="r" values="16;20;16" dur="2s" repeatCount="indefinite"/>
+  <circle cx="50" cy="50" r="15" fill="none" stroke="url(#grad1)" stroke-width="2" opacity="0.5">
+    <animate attributeName="r" values="15;19;15" dur="2s" repeatCount="indefinite"/>
     <animate attributeName="opacity" values="0.5;0.1;0.5" dur="2s" repeatCount="indefinite"/>
   </circle>
 </svg>
