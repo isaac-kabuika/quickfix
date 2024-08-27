@@ -1,6 +1,6 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import axios from 'axios';
-import { supabase } from '../../../lib/supabaseClient';
+import { supabase } from '../../../../lib/supabaseClient';
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   const { code } = req.query;
@@ -22,7 +22,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
 
     // Update the user's GitHub token in Supabase auth metadata
     const { data, error } = await supabase.auth.updateUser({
-      app_metadata: { provider_token: access_token }
+      data: { provider_token: access_token }
     });
 
     if (error) {
