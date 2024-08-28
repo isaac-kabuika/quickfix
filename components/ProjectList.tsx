@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { ProjectEditRow } from './ProjectEditRow'
 
 interface Project {
   id: string;
@@ -15,6 +16,7 @@ interface ProjectListProps {
 const ProjectList: React.FC<ProjectListProps> = ({ projects, onDeleteProject }) => {
   const [activePopup, setActivePopup] = useState<string | null>(null);
   const popupRef = useRef<HTMLDivElement>(null);
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -39,6 +41,10 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects, onDeleteProject }) 
       onDeleteProject(projectId);
     }
     setActivePopup(null);
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProjectId(null);
   };
 
   return (
@@ -71,6 +77,14 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects, onDeleteProject }) 
                 Delete Project
               </button>
             </div>
+          )}
+          {editingProjectId === project.id && (
+            <ProjectEditRow
+              key={project.id}
+              project={project}
+              onSave={handleSaveProject}
+              onCancel={handleCancelEdit}
+            />
           )}
         </div>
       ))}

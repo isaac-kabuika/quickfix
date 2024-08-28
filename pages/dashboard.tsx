@@ -193,7 +193,11 @@ function Dashboard() {
     if (!user) return;
     setIsCreatingProject(true);
     try {
-      const newProject = await createProject(user.id, projectName, githubRepo);
+      const newProject = await createProject({
+        userId: user.id,
+        name: projectName,
+        githubRepo: githubRepo
+      });
       setProjects((prevProjects) => [...prevProjects, newProject]);
       setShowConnectPopup(false);
     } catch (error) {
