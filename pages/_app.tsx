@@ -21,7 +21,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       {user && <Sidebar />}
       <div className="flex flex-col flex-grow">
         <Navbar />
-        <main className="flex-grow p-4">
+        <main className="flex-grow bg-white dark:bg-gray-900">
           {children}
         </main>
         <footer className="bg-background-light dark:bg-background-dark py-4 text-center text-gray-400">

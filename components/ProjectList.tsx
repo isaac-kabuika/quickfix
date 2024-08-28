@@ -44,8 +44,12 @@ const ProjectList: React.FC<ProjectListProps> = ({ projects, onDeleteProject }) 
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
       {projects.map((project) => (
-        <div key={project.id} className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-md relative">
-          <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200">{project.name}</h3>
+        <div key={project.id} className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+          <Link href={`/projects/${project.id}`}>
+            <h3 className="text-xl font-semibold mb-2 text-gray-800 dark:text-gray-200 hover:text-primary-500 dark:hover:text-primary-400 cursor-pointer">
+              {project.name}
+            </h3>
+          </Link>
           <p className="text-gray-600 dark:text-gray-400">{project.github_repo}</p>
           <div className="flex justify-between items-center mt-4">
             <Link href={`/projects/${project.id}`} className="text-primary-500 hover:text-primary-600">

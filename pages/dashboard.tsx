@@ -1,15 +1,14 @@
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '../store'
 import { fetchUserData } from '../store/userActions'
-import { getProjects, deleteProject } from '../services/projectService'
+import { getProjects, deleteProject, createProject } from '../services/projectService'
 import ProjectList from '../components/ProjectList'
 import { supabase } from '../lib/supabaseApiClient'
 import ProtectedRoute from '../components/ProtectedRoute'
-import CreateProjectPopup from '../components/CreateProjectPopup'
 import { signInWithGitHub } from '../services/authService'
-import { createProject } from '../services/projectService' // Make sure this import is present
 import { useRouter } from 'next/router'
+import Link from 'next/link'
 
 interface Project {
   id: string;
@@ -34,6 +33,9 @@ function Dashboard() {
   const [isGithubConnected, setIsGithubConnected] = useState(false)
   const [creatingProjects, setCreatingProjects] = useState<Set<string>>(new Set())
   const [isCreatingProject, setIsCreatingProject] = useState(false)
+  const [showConnectPopup, setShowConnectPopup] = useState(false)
+  const connectButtonRef = useRef<HTMLButtonElement>(null)
+  const connectPopupRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     dispatch(fetchUserData())
@@ -80,6 +82,20 @@ function Dashboard() {
       setError('Failed to sign in with GitHub')
     }
   }, [router.query])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (connectPopupRef.current && !connectPopupRef.current.contains(event.target as Node) &&
+          connectButtonRef.current && !connectButtonRef.current.contains(event.target as Node)) {
+        setShowConnectPopup(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   const loadProjects = async () => {
     if (!user) return
@@ -173,6 +189,21 @@ function Dashboard() {
     }
   }
 
+  const handleCreateProject = async (projectName: string, githubRepo: string) => {
+    if (!user) return;
+    setIsCreatingProject(true);
+    try {
+      const newProject = await createProject(user.id, projectName, githubRepo);
+      setProjects((prevProjects) => [...prevProjects, newProject]);
+      setShowConnectPopup(false);
+    } catch (error) {
+      console.error('Error creating project:', error);
+      setError('Failed to create project');
+    } finally {
+      setIsCreatingProject(false);
+    }
+  };
+
   const paginatedProjects = filteredProjects.slice(
     (currentPage - 1) * PROJECTS_PER_PAGE,
     currentPage * PROJECTS_PER_PAGE
@@ -184,19 +215,19 @@ function Dashboard() {
   if (!user) return <div className="text-center text-red-500">Please sign in to view your dashboard.</div>
 
   return (
-    <div className="relative container mx-auto px-4 py-8 max-w-7xl">
-      {projects.length > 0 && (
-        <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center mb-8">
-          <div className="relative w-full lg:w-64 mb-4 lg:mb-0">
+    <div className="flex flex-col h-full">
+      <div className="bg-white dark:bg-gray-800 shadow-md flex items-center p-2 px-4 border-b border-gray-200 dark:border-gray-700">
+        <div className="flex items-center space-x-2 flex-grow">
+          <div className="relative w-56">
             <input
               type="text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Search projects..."
-              className="w-full p-2 pl-10 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-800 dark:text-gray-200"
+              className="w-full p-1 pl-8 text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-800 dark:text-gray-200"
             />
             <svg
-              className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500"
+              className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400 dark:text-gray-500"
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
@@ -210,91 +241,197 @@ function Dashboard() {
               />
             </svg>
           </div>
-          <button
-            onClick={() => setShowCreatePopup(true)}
-            className="bg-primary-500 text-white px-4 py-2 rounded-md hover:bg-primary-600 transition-colors"
-          >
-            Create New Project
-          </button>
-        </div>
-      )}
-      
-      {error && <p className="text-red-500 mb-4">{error}</p>}
-      
-      {githubError && (
-        <button
-          onClick={handleConnectGitHub}
-          className="bg-primary-500 text-white px-4 py-2 rounded-md hover:bg-primary-600 transition-colors mb-4"
-        >
-          Reconnect GitHub
-        </button>
-      )}
-
-      {projects.length === 0 ? (
-        <div className="text-center py-16">
-          <h2 className="text-2xl font-semibold mb-4 text-gray-300">No Projects Yet</h2>
-          <p className="text-gray-400 mb-8">Get started by creating your first project!</p>
-          <button
-            onClick={() => setShowCreatePopup(true)}
-            className="bg-primary-500 text-white px-6 py-3 rounded-full hover:bg-primary-600 transition-colors text-lg font-semibold"
-          >
-            Create Your First Project
-          </button>
-        </div>
-      ) : (
-        <>
-          <ProjectList 
-            projects={paginatedProjects} 
-            onDeleteProject={handleDeleteProject}
-          />
-          
-          {totalPages > 1 && (
-            <div className="flex justify-center items-center mt-8 space-x-4">
-              <button 
-                onClick={() => setCurrentPage((prev: number) => Math.max(prev - 1, 1))}
-                disabled={currentPage === 1}
-                className="text-gray-500 hover:text-primary-500 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
+          <div className="relative">
+            <button
+              ref={connectButtonRef}
+              onClick={() => setShowConnectPopup(!showConnectPopup)}
+              className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+            >
+              <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Connect Project
+            </button>
+            {showConnectPopup && (
+              <div 
+                ref={connectPopupRef}
+                className="absolute z-10 mt-2 w-80 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                </svg>
-              </button>
-              <span className="text-sm text-gray-500">Page {currentPage} of {totalPages}</span>
-              <button 
-                onClick={() => setCurrentPage((prev: number) => Math.min(prev + 1, totalPages))}
-                disabled={currentPage === totalPages}
-                className="text-gray-500 hover:text-primary-500 disabled:text-gray-300 disabled:cursor-not-allowed transition-colors"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </button>
-            </div>
-          )}
-        </>
-      )}
-
-      {showCreatePopup && user && (
-        <div className="fixed inset-0 flex items-center justify-center z-50">
-          <div className="absolute inset-0 bg-black opacity-50"></div>
-          <div className="relative z-10 w-full max-w-md">
-            <CreateProjectPopup
-              onClose={() => setShowCreatePopup(false)}
-              onProjectCreated={handleProjectCreated}
-              userId={user.id}
-              isCreating={isCreatingProject}
-            />
+                <div className="px-4 py-2">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Connect Project</h3>
+                  <form onSubmit={(e) => {
+                    e.preventDefault();
+                    const formData = new FormData(e.currentTarget);
+                    const projectName = formData.get('projectName') as string;
+                    const githubRepo = formData.get('githubRepo') as string;
+                    handleCreateProject(projectName, githubRepo);
+                  }}>
+                    <div className="mb-4">
+                      <label htmlFor="projectName" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Project Name
+                      </label>
+                      <input
+                        type="text"
+                        id="projectName"
+                        name="projectName"
+                        placeholder="Enter project name"
+                        className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 text-gray-900 dark:text-gray-100"
+                        required
+                      />
+                    </div>
+                    <div className="mb-4">
+                      <label htmlFor="githubRepo" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        GitHub Repo URL
+                      </label>
+                      <input
+                        type="text"
+                        id="githubRepo"
+                        name="githubRepo"
+                        placeholder="https://github.com/username/repo"
+                        className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 text-gray-900 dark:text-gray-100"
+                        required
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      className="w-full bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center justify-center"
+                      disabled={isCreatingProject}
+                    >
+                      {isCreatingProject ? (
+                        <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                      ) : (
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                        </svg>
+                      )}
+                      {isCreatingProject ? 'Connecting...' : 'Connect Project'}
+                    </button>
+                  </form>
+                </div>
+              </div>
+            )}
           </div>
         </div>
-      )}
+        {!isGithubConnected && (
+          <button
+            onClick={handleConnectGitHub}
+            className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+          >
+            Connect GitHub
+          </button>
+        )}
+      </div>
 
-      {!isGithubConnected && (
-        <button
-          onClick={handleConnectGitHub}
-          className="bg-primary-500 text-white px-4 py-2 rounded-md hover:bg-primary-600 transition-colors mb-4"
-        >
-          Connect GitHub
-        </button>
+      {error && <p className="text-red-500 p-2 px-4 bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">{error}</p>}
+
+      <div className="flex-grow overflow-auto">
+        {projects.length === 0 ? (
+          <div className="flex-grow flex items-center justify-center bg-white dark:bg-gray-800 h-full">
+            <div className="text-center">
+              <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">No Projects Yet</h2>
+              <p className="text-gray-600 dark:text-gray-400 mb-8">Get started by creating your first project!</p>
+              <button
+                onClick={() => setShowCreatePopup(true)}
+                className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center justify-center"
+              >
+                <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                Create Your First Project
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full border-collapse">
+              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
+                <tr>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">Project Name</th>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">GitHub Repo</th>
+                  <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-gray-200 dark:border-gray-600">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {paginatedProjects.map((project, index) => (
+                  <tr key={project.id} className={`hover:bg-gray-50 dark:hover:bg-gray-750 ${index === paginatedProjects.length - 1 ? 'border-b border-gray-200 dark:border-gray-600' : ''}`}>
+                    <td className="px-4 py-2 whitespace-nowrap border-r border-gray-200 dark:border-gray-600">
+                      <Link href={`/projects/${project.id}`} className="text-primary-600 dark:text-primary-400 hover:underline">
+                        {project.name}
+                      </Link>
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600">
+                      {project.github_repo}
+                    </td>
+                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">
+                      <button
+                        onClick={() => handleDeleteProject(project.id)}
+                        className="text-red-600 hover:text-red-900 dark:hover:text-red-400"
+                      >
+                        Delete
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
+      {totalPages > 1 && (
+        <div className="bg-white dark:bg-gray-800 px-4 py-2 flex items-center justify-between border-t border-gray-200 dark:border-gray-700">
+          <div className="flex-1 flex justify-between sm:hidden">
+            <button
+              onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+              disabled={currentPage === 1}
+              className="relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+            >
+              Previous
+            </button>
+            <button
+              onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+              disabled={currentPage === totalPages}
+              className="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 text-sm font-medium rounded-md text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600"
+            >
+              Next
+            </button>
+          </div>
+          <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm text-gray-700 dark:text-gray-300">
+                Showing <span className="font-medium">{(currentPage - 1) * PROJECTS_PER_PAGE + 1}</span> to <span className="font-medium">{Math.min(currentPage * PROJECTS_PER_PAGE, filteredProjects.length)}</span> of{' '}
+                <span className="font-medium">{filteredProjects.length}</span> results
+              </p>
+            </div>
+            <div>
+              <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.max(prev - 1, 1))}
+                  disabled={currentPage === 1}
+                  className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                  <span className="sr-only">Previous</span>
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+                <button
+                  onClick={() => setCurrentPage((prev) => Math.min(prev + 1, totalPages))}
+                  disabled={currentPage === totalPages}
+                  className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-sm font-medium text-gray-500 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-600"
+                >
+                  <span className="sr-only">Next</span>
+                  <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clipRule="evenodd" />
+                  </svg>
+                </button>
+              </nav>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
