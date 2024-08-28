@@ -233,7 +233,7 @@ function ProjectPage() {
                   <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                   </svg>
-                  Report Bug
+                  Fix Bug
                 </button>
                 {showReportBugPopup && (
                   <div 
@@ -241,7 +241,7 @@ function ProjectPage() {
                     className="absolute z-10 mt-2 w-80 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none"
                   >
                     <div className="px-4 py-2">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Report Bug</h3>
+                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Fix Bug</h3>
                       <form onSubmit={(e) => {
                         e.preventDefault();
                         const formData = new FormData(e.currentTarget);
@@ -276,7 +276,7 @@ function ProjectPage() {
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                             </svg>
                           )}
-                          {isCreatingBug ? 'Reporting...' : 'Report Bug'}
+                          {isCreatingBug ? 'Reporting...' : 'Fix Bug'}
                         </button>
                       </form>
                     </div>

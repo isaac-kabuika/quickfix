@@ -3,10 +3,11 @@ import { createBugReport } from '../services/bugReportService'
 
 interface BugReportFormProps {
   projectId: string
+  userId: string  // Add this line
   onBugReportCreated: (bugReportId: string) => void
 }
 
-export default function BugReportForm({ projectId, onBugReportCreated }: BugReportFormProps) {
+export default function BugReportForm({ projectId, userId, onBugReportCreated }: BugReportFormProps) {
   const [description, setDescription] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -16,7 +17,7 @@ export default function BugReportForm({ projectId, onBugReportCreated }: BugRepo
     setIsSubmitting(true)
     setError(null)
     try {
-      const bugReport = await createBugReport(projectId, description)
+      const bugReport = await createBugReport(projectId, description, userId)
       setDescription('')
       onBugReportCreated(bugReport.id)
     } catch (error) {
