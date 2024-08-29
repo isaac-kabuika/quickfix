@@ -1,15 +1,12 @@
 import { supabase } from '../lib/supabaseApiClient'
 import { createGithubClient } from '../lib/githubApiClient'
-import { store } from '../store'
+import { Tables, TablesInsert, TablesUpdate } from '../types/supabase'
 
-export interface Project {
-  id: string
-  name: string
-  github_repo: string
-  owner_id: string
-}
+export type Project = Tables<'projects'>
+export type ProjectInsert = TablesInsert<'projects'>
+export type ProjectUpdate = TablesUpdate<'projects'>
 
-export const getProjects = async (userId: string) => {
+export const getProjects = async (userId: string): Promise<Project[]> => {
   const { data, error } = await supabase
     .from('projects')
     .select('*')
@@ -19,7 +16,7 @@ export const getProjects = async (userId: string) => {
   return data
 }
 
-export const createProject = async (projectData: any) => {
+export const createProject = async (projectData: ProjectInsert) => {
   console.log('Creating project:', projectData)
 
   const { data: session } = await supabase.auth.getSession()
@@ -42,12 +39,10 @@ export const createProject = async (projectData: any) => {
     throw new Error('GitHub access token not found')
   }
 
-  // Use the GitHub token to create the repository
-  // ... (implement GitHub repository creation logic here)
   // You can use the `provider_token` as the GitHub access token
 
   // Prepare the project data, ensuring we don't include an ID
-  const newProjectData = {
+  const newProjectData: ProjectInsert = {
     name: projectData.name,
     github_repo: projectData.github_repo,
     owner_id: user.id,
@@ -70,7 +65,7 @@ export const createProject = async (projectData: any) => {
   return data
 }
 
-export const getProject = async (projectId: string) => {
+export const getProject = async (projectId: string): Promise<Project> => {
   const { data, error } = await supabase
     .from('projects')
     .select('*')
@@ -96,7 +91,7 @@ export const getProjectFiles = async (projectId: string, userId: string) => {
   const files = await githubClient.getRepoContents(owner, repo)
   
   // Convert GitHub API response to StackBlitz file format
-  return files.reduce((acc: { [key: string]: { content: string } }, file) => {
+  return files.reduce((acc: { [key: string]: { content: string } }, file: { type: string; path: string; content?: string }) => {
     if (file.type === 'file' && file.content) {
       acc[file.path] = { content: file.content }
     }
@@ -104,16 +99,18 @@ export const getProjectFiles = async (projectId: string, userId: string) => {
   }, {})
 }
 
-export const inviteTeamMember = async (projectId: string, email: string) => {
+export const inviteTeamMember = async (projectId: string, email: string): Promise<Tables<'project_invitations'>> => {
   const { data, error } = await supabase
     .from('project_invitations')
     .insert({ project_id: projectId, invited_email: email, status: 'pending' })
+    .select()
+    .single()
 
   if (error) throw error
   return data
 }
 
-export const getProjectInvitations = async (projectId: string) => {
+export const getProjectInvitations = async (projectId: string): Promise<Tables<'project_invitations'>[]> => {
   const { data, error } = await supabase
     .from('project_invitations')
     .select('*')
@@ -134,7 +131,7 @@ export const deleteProject = async (projectId: string) => {
   }
 }
 
-export const updateProject = async (projectId: string, updatedData: Partial<Project>) => {
+export const updateProject = async (projectId: string, updatedData: ProjectUpdate): Promise<Project> => {
   const { data, error } = await supabase
     .from('projects')
     .update(updatedData)

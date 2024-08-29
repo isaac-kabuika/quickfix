@@ -1,7 +1,7 @@
 import ProtectedRoute from '../components/ProtectedRoute'
 import { useState, useEffect } from 'react'
-import { useAuth } from '../hooks/useAuth'
-import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../store/hooks/useAuth'
+import { supabase } from '../lib/supabaseApiClient'
 
 export default ProtectedRoute(Profile)
 
@@ -13,7 +13,7 @@ function Profile() {
 
   useEffect(() => {
     if (user) {
-      setName(user.user_metadata?.name || '')
+      setName(user.user_metadata?.full_name || '')
     }
   }, [user])
 

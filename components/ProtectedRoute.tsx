@@ -1,27 +1,26 @@
-import { useEffect } from 'react'
 import { useRouter } from 'next/router'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../store/hooks/useAuth'
 
-const ProtectedRoute = (WrappedComponent: React.ComponentType<any>) => {
+const ProtectedRoute = (WrappedComponent: React.ComponentType) => {
   return (props: any) => {
     const router = useRouter()
     const { user, loading } = useAuth()
 
-    useEffect(() => {
-      if (!loading && !user) {
-        router.replace('/') // Changed from '/login' to '/'
+    if (typeof window !== 'undefined') {
+      if (loading) {
+        return <div>Loading...</div>
       }
-    }, [user, loading])
 
-    if (loading) {
-      return <div>Loading...</div>
+      if (!user) {
+        router.replace('/')
+        return null
+      }
+
+      return <WrappedComponent {...props} />
     }
 
-    if (!user) {
-      return null
-    }
-
-    return <WrappedComponent {...props} />
+    // Return null if we're on server-side
+    return null
   }
 }
 

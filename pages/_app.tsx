@@ -1,19 +1,23 @@
 import { AppProps } from 'next/app'
-import { SessionProvider } from "next-auth/react"
 import '../styles/globals.css'
-import Head from 'next/head'
 import Navbar from '../components/Navbar'
 import Sidebar from '../components/Sidebar'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../store/hooks/useAuth'
 import { ThemeProvider } from '../contexts/ThemeContext'
-import { Provider } from 'react-redux'
-import { store } from '../store'
+import { useEffect, useState } from 'react'
+import { AuthProvider } from '../contexts/AuthContext'
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
+  const [mounted, setMounted] = useState(false)
 
-  if (loading) {
-    return <div>Loading...</div>
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Render a loading state or nothing on the server
+  if (!mounted || loading) {
+    return null
   }
 
   return (
@@ -34,15 +38,13 @@ function Layout({ children }: { children: React.ReactNode }) {
 
 function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <Provider store={store}>
-      <ThemeProvider>
-        <SessionProvider session={pageProps.session}>
-          <Layout>
-            <Component {...pageProps} />
-          </Layout>
-        </SessionProvider>
-      </ThemeProvider>
-    </Provider>
+    <ThemeProvider>
+      <AuthProvider>
+        <Layout>
+          <Component {...pageProps} />
+        </Layout>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

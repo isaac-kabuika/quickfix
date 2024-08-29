@@ -1,13 +1,6 @@
 import { useState, useEffect } from 'react'
-import { getProject, getProjectFiles } from '../services/projectService'
+import { getProject, getProjectFiles, Project } from '../../services/projectService'
 import { useAuth } from './useAuth'
-
-interface Project {
-  id: string
-  name: string
-  github_repo: string
-  owner_id: string
-}
 
 interface ProjectFile {
   [key: string]: { content: string }

@@ -1,7 +1,4 @@
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { useDispatch, useSelector } from 'react-redux'
-import { AppDispatch, RootState } from '../store'
-import { fetchUserData } from '../store/userActions'
 import { getProjects, deleteProject, createProject, updateProject } from '../services/projectService'
 import ProjectList from '../components/ProjectList'
 import { supabase } from '../lib/supabaseApiClient'
@@ -9,6 +6,7 @@ import ProtectedRoute from '../components/ProtectedRoute'
 import { signInWithGitHub } from '../services/authService'
 import { useRouter } from 'next/router'
 import Link from 'next/link'
+import { useAuth } from '../store/hooks/useAuth'
 
 interface Project {
   id: string;
@@ -19,8 +17,7 @@ interface Project {
 const PROJECTS_PER_PAGE = 10
 
 function Dashboard() {
-  const dispatch = useDispatch<AppDispatch>()
-  const { user, loading: authLoading, error: authError } = useSelector((state: RootState) => state.user)
+  const { user, loading: authLoading, error: authError } = useAuth()
   const router = useRouter()
   const [projects, setProjects] = useState<Project[]>([])
   const [filteredProjects, setFilteredProjects] = useState<Project[]>([])
@@ -39,68 +36,10 @@ function Dashboard() {
   const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set())
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [editedProjects, setEditedProjects] = useState<{ [key: string]: Project }>({})
+  const projectsLoadedRef = useRef(false);
 
-  useEffect(() => {
-    dispatch(fetchUserData())
-  }, [dispatch])
-
-  useEffect(() => {
-    if (user && !authLoading) {
-      loadProjects()
-      subscribeToProjects()
-    }
-    return () => {
-      supabase.removeAllChannels()
-    }
-  }, [user, authLoading])
-
-  useEffect(() => {
-    const filtered = projects.filter((project: Project) => 
-      project.name.toLowerCase().includes(searchTerm.toLowerCase())
-    )
-    setFilteredProjects(filtered)
-    setCurrentPage(1)
-  }, [searchTerm, projects])
-
-  useEffect(() => {
-    const checkGithubConnection = async () => {
-      if (user) {
-        const { data: session } = await supabase.auth.getSession()
-        setIsGithubConnected(!!session?.session?.provider_token)
-      }
-    }
-    checkGithubConnection()
-  }, [user])
-
-  useEffect(() => {
-    const { access_token, error } = router.query
-
-    if (access_token) {
-      // Successfully signed in and redirected
-      console.log('Successfully signed in with GitHub')
-      // You might want to fetch user data or projects here
-      loadProjects()
-    } else if (error) {
-      console.error('Error signing in with GitHub:', error)
-      setError('Failed to sign in with GitHub')
-    }
-  }, [router.query])
-
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (connectPopupRef.current && !connectPopupRef.current.contains(event.target as Node) &&
-          connectButtonRef.current && !connectButtonRef.current.contains(event.target as Node)) {
-        setShowConnectPopup(false)
-      }
-    }
-
-    document.addEventListener("mousedown", handleClickOutside)
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside)
-    }
-  }, [])
-
-  const loadProjects = async () => {
+  const loadProjects = useCallback(async () => {
+    console.log(user);
     if (!user) return
     setIsLoading(true)
     try {
@@ -111,9 +50,21 @@ function Dashboard() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [user])
 
-  const subscribeToProjects = () => {
+  useEffect(() => {
+    if (user && !authLoading && !projectsLoadedRef.current) {
+      loadProjects()
+      subscribeToProjects()
+      setIsGithubConnected(user.app_metadata?.provider === 'github')
+      projectsLoadedRef.current = true;
+    }
+    return () => {
+      supabase.removeAllChannels()
+    }
+  }, [user, authLoading, loadProjects])
+
+  const subscribeToProjects = useCallback(() => {
     if (!user) return
     supabase
       .channel('public:projects')
@@ -129,7 +80,29 @@ function Dashboard() {
         }
       })
       .subscribe()
-  }
+  }, [user, creatingProjects])
+
+  useEffect(() => {
+    const filtered = projects.filter((project: Project) => 
+      project.name.toLowerCase().includes(searchTerm.toLowerCase())
+    )
+    setFilteredProjects(filtered)
+    setCurrentPage(1)
+  }, [searchTerm, projects])
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (connectPopupRef.current && !connectPopupRef.current.contains(event.target as Node) &&
+          connectButtonRef.current && !connectButtonRef.current.contains(event.target as Node)) {
+        setShowConnectPopup(false)
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside)
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside)
+    }
+  }, [])
 
   const handleProjectCreated = useCallback(async (newProject: any) => {
     if (isCreatingProject) return // Prevent multiple submissions
@@ -197,9 +170,9 @@ function Dashboard() {
     setIsCreatingProject(true);
     try {
       const newProject = await createProject({
-        userId: user.id,
+        owner_id: user.id,
         name: projectName,
-        githubRepo: githubRepo
+        github_repo: githubRepo
       });
       setProjects((prevProjects) => [...prevProjects, newProject]);
       setShowConnectPopup(false);

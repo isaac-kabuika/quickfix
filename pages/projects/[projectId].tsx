@@ -1,9 +1,9 @@
-import React, { useEffect, useState, useRef } from 'react'
+import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/router'
 import { getProject } from '../../services/projectService'
 import { getBugReports, createBugReport, deleteBugReport, updateBugReport } from '../../services/bugReportService'
 import Link from 'next/link'
-import { useAuth } from '../../hooks/useAuth'
+import { useAuth } from '../../store/hooks/useAuth'
 import ProtectedRoute from '../../components/ProtectedRoute'
 
 interface Project {
@@ -38,12 +38,40 @@ function ProjectPage() {
   const [editedBug, setEditedBug] = useState<Bug | null>(null)
   const [selectedBugs, setSelectedBugs] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
+  const dataLoadedRef = useRef(false);
+
+  const loadProjectAndBugs = useCallback(async () => {
+    if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
+    setLoading(true);
+    try {
+      const [projectData, bugsData] = await Promise.all([
+        getProject(projectId),
+        getBugReports(projectId)
+      ]);
+      setProject(projectData);
+      setBugs(bugsData);
+    } catch (err) {
+      console.error('Failed to fetch project or bugs:', err);
+      setError('Failed to load project data');
+    } finally {
+      setLoading(false);
+      dataLoadedRef.current = true;
+    }
+  }, [projectId]);
 
   useEffect(() => {
-    if (projectId) {
-      loadProjectAndBugs()
+    if (projectId && typeof projectId === 'string') {
+      dataLoadedRef.current = false;
+      loadProjectAndBugs();
     }
-  }, [projectId])
+  }, [projectId, loadProjectAndBugs]);
+
+  // Reset the dataLoadedRef when the component unmounts
+  useEffect(() => {
+    return () => {
+      dataLoadedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const filtered = bugs.filter((bug) => 
@@ -66,20 +94,6 @@ function ProjectPage() {
       document.removeEventListener("mousedown", handleClickOutside)
     }
   }, [])
-
-  const loadProjectAndBugs = async () => {
-    try {
-      const projectData = await getProject(projectId as string)
-      setProject(projectData)
-      const bugsData = await getBugReports(projectId as string)
-      setBugs(bugsData)
-      setLoading(false)
-    } catch (err) {
-      console.error('Failed to fetch project or bugs:', err)
-      setError('Failed to load project data')
-      setLoading(false)
-    }
-  }
 
   const handleBugCreated = async (newBug: { description: string }) => {
     if (isCreatingBug || !user || !project) return
