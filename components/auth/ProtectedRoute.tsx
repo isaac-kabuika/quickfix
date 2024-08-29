@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router'
-import { useAuth } from '../store/hooks/useAuth'
+import { useAuth } from '../../store/hooks/useAuth'
 
 const ProtectedRoute = (WrappedComponent: React.ComponentType) => {
   return (props: any) => {

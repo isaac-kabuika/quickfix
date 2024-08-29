@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/router'
-import { useAuth } from '../store/hooks/useAuth'
+import { useAuth } from '../../store/hooks/useAuth'
 import { useState, useEffect, useRef } from 'react'
 
 export default function Sidebar() {

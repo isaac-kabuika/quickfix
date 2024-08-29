@@ -1,11 +1,11 @@
 import { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useAuth } from '../store/hooks/useAuth'
-import { supabase } from '../lib/supabaseApiClient'
-import { useTheme } from '../contexts/ThemeContext'
+import { useAuth } from '../../store/hooks/useAuth'
+import { supabase } from '../../lib/supabaseApiClient'
+import { useTheme } from '../../contexts/ThemeContext'
 import { useRouter } from 'next/router'
-import { signOut } from '../services/authService'
+import { signOut } from '../../services/authService'
 
 export default function Navbar() {
   const { user, loading } = useAuth()

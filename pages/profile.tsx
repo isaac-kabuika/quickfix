@@ -1,4 +1,4 @@
-import ProtectedRoute from '../components/ProtectedRoute'
+import ProtectedRoute from '../components/auth/ProtectedRoute'
 import { useState, useEffect } from 'react'
 import { useAuth } from '../store/hooks/useAuth'
 import { supabase } from '../lib/supabaseApiClient'

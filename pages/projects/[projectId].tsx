@@ -4,7 +4,7 @@ import { getProject } from '../../services/projectService'
 import { getBugReports, createBugReport, deleteBugReport, updateBugReport } from '../../services/bugReportService'
 import Link from 'next/link'
 import { useAuth } from '../../store/hooks/useAuth'
-import ProtectedRoute from '../../components/ProtectedRoute'
+import ProtectedRoute from '../../components/auth/ProtectedRoute'
 
 interface Project {
   id: string;
