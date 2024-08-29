@@ -2,6 +2,13 @@ import { supabase } from '../lib/supabaseApiClient'
 import { createGithubClient } from '../lib/githubApiClient'
 import { store } from '../store'
 
+export interface Project {
+  id: string
+  name: string
+  github_repo: string
+  owner_id: string
+}
+
 export const getProjects = async (userId: string) => {
   const { data, error } = await supabase
     .from('projects')
