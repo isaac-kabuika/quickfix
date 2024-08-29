@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import Image from 'next/image'
-import Navbar from '../components/Navbar'
+import Navbar from '../components/navigation/Navbar'
 
 export default function Custom404() {
   return (
@@ -11,8 +11,6 @@ export default function Custom404() {
         <meta name="description" content="The page you're looking for doesn't exist." />
         <link rel="icon" href="/images/app-icon.svg" type="image/svg+xml" />
       </Head>
-
-      <Navbar />
 
       <main className="container mx-auto px-4 py-16">
         <div className="flex flex-col items-center justify-center">
@@ -26,12 +24,6 @@ export default function Custom404() {
           </Link>
         </div>
       </main>
-
-      <footer className="bg-background-light py-8 mt-auto">
-        <div className="container mx-auto px-4 text-center text-gray-400">
-          © 2024 QuickFix AI. All rights reserved.
-        </div>
-      </footer>
     </>
   )
 }

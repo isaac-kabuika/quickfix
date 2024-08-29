@@ -1,7 +1,12 @@
 import { supabase } from '../lib/supabaseApiClient'
 import { createGithubClient } from '../lib/githubApiClient'
+import { Tables, TablesInsert, TablesUpdate } from '../types/supabase'
 
-export const getProjects = async (userId: string) => {
+export type Project = Tables<'projects'>
+export type ProjectInsert = TablesInsert<'projects'>
+export type ProjectUpdate = TablesUpdate<'projects'>
+
+export const getProjects = async (userId: string): Promise<Project[]> => {
   const { data, error } = await supabase
     .from('projects')
     .select('*')
@@ -11,57 +16,56 @@ export const getProjects = async (userId: string) => {
   return data
 }
 
-export const createProject = async (projectData: {
-  name: string
-  owner_id: string
-  github_repo: string
-}) => {
-  try {
-    console.log('Creating project for user:', projectData.owner_id)
+export const createProject = async (projectData: ProjectInsert) => {
+  console.log('Creating project:', projectData)
 
-    // Fetch user data from the API route
-    const response = await fetch(`/api/getUserData?userId=${projectData.owner_id}`)
-    if (!response.ok) {
-      throw new Error('Failed to fetch user data')
-    }
-    const userData = await response.json()
+  const { data: session } = await supabase.auth.getSession()
+  console.log('Current session:', session)
 
-    const githubAccessToken = userData.user.app_metadata?.provider_token
+  if (!session || !session.session) {
+    throw new Error('No active session')
+  }
 
-    if (!githubAccessToken) {
-      console.error('GitHub access token not found for user:', projectData.owner_id)
-      throw new Error('GitHub access token not found. Please reconnect your GitHub account.')
-    }
+  const { user, provider_token } = session.session
 
-    const githubClient = createGithubClient(githubAccessToken)
+  if (!user) {
+    throw new Error('User not found')
+  }
 
-    // Verify repository access
-    const [owner, repo] = projectData.github_repo.split('/')
-    try {
-      await githubClient.getRepoContents(owner, repo)
-    } catch (error) {
-      console.error('Error accessing GitHub repository:', error)
-      throw new Error('Unable to access the specified GitHub repository. Please check the URL and your permissions.')
-    }
+  console.log('User:', user)
+  console.log('Provider token:', provider_token)
 
-    const { data, error } = await supabase
-      .from('projects')
-      .insert(projectData)
-      .single()
+  if (!provider_token) {
+    throw new Error('GitHub access token not found')
+  }
 
-    if (error) {
-      console.error('Error creating project in database:', error)
-      throw new Error(`Failed to create project in database: ${error.message}`)
-    }
+  // You can use the `provider_token` as the GitHub access token
 
-    return data
-  } catch (error) {
-    console.error('Error in createProject:', error)
+  // Prepare the project data, ensuring we don't include an ID
+  const newProjectData: ProjectInsert = {
+    name: projectData.name,
+    github_repo: projectData.github_repo,
+    owner_id: user.id,
+    // Add any other fields that are part of your project schema
+  }
+
+  // Then create the project in your database
+  const { data, error } = await supabase
+    .from('projects')
+    .insert([newProjectData])
+    .select()
+    .single() // This ensures we only get one result
+
+  if (error) {
+    console.error('Error creating project:', error)
     throw error
   }
+
+  console.log('Project created successfully:', data)
+  return data
 }
 
-export const getProject = async (projectId: string) => {
+export const getProject = async (projectId: string): Promise<Project> => {
   const { data, error } = await supabase
     .from('projects')
     .select('*')
@@ -87,7 +91,7 @@ export const getProjectFiles = async (projectId: string, userId: string) => {
   const files = await githubClient.getRepoContents(owner, repo)
   
   // Convert GitHub API response to StackBlitz file format
-  return files.reduce((acc: { [key: string]: { content: string } }, file) => {
+  return files.reduce((acc: { [key: string]: { content: string } }, file: { type: string; path: string; content?: string }) => {
     if (file.type === 'file' && file.content) {
       acc[file.path] = { content: file.content }
     }
@@ -95,20 +99,45 @@ export const getProjectFiles = async (projectId: string, userId: string) => {
   }, {})
 }
 
-export const inviteTeamMember = async (projectId: string, email: string) => {
+export const inviteTeamMember = async (projectId: string, email: string): Promise<Tables<'project_invitations'>> => {
   const { data, error } = await supabase
     .from('project_invitations')
     .insert({ project_id: projectId, invited_email: email, status: 'pending' })
+    .select()
+    .single()
 
   if (error) throw error
   return data
 }
 
-export const getProjectInvitations = async (projectId: string) => {
+export const getProjectInvitations = async (projectId: string): Promise<Tables<'project_invitations'>[]> => {
   const { data, error } = await supabase
     .from('project_invitations')
     .select('*')
     .eq('project_id', projectId)
+
+  if (error) throw error
+  return data
+}
+
+export const deleteProject = async (projectId: string) => {
+  const { error } = await supabase
+    .from('projects')
+    .delete()
+    .eq('id', projectId)
+
+  if (error) {
+    throw new Error('Failed to delete project')
+  }
+}
+
+export const updateProject = async (projectId: string, updatedData: ProjectUpdate): Promise<Project> => {
+  const { data, error } = await supabase
+    .from('projects')
+    .update(updatedData)
+    .eq('id', projectId)
+    .select()
+    .single()
 
   if (error) throw error
   return data

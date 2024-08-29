@@ -1,17 +1,23 @@
 import { AppProps } from 'next/app'
-import { SessionProvider } from "next-auth/react"
 import '../styles/globals.css'
-import Head from 'next/head'
-import Navbar from '../components/Navbar'
-import Sidebar from '../components/Sidebar'
-import { useAuth } from '../hooks/useAuth'
+import Navbar from '../components/navigation/Navbar'
+import Sidebar from '../components/navigation/Sidebar'
+import { useAuth } from '../store/hooks/useAuth'
 import { ThemeProvider } from '../contexts/ThemeContext'
+import { useEffect, useState } from 'react'
+import { AuthProvider } from '../contexts/AuthContext'
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
+  const [mounted, setMounted] = useState(false)
 
-  if (loading) {
-    return <div>Loading...</div>
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // Render a loading state or nothing on the server
+  if (!mounted || loading) {
+    return null
   }
 
   return (
@@ -19,7 +25,7 @@ function Layout({ children }: { children: React.ReactNode }) {
       {user && <Sidebar />}
       <div className="flex flex-col flex-grow">
         <Navbar />
-        <main className="flex-grow p-4">
+        <main className="flex-grow bg-white dark:bg-gray-900">
           {children}
         </main>
         <footer className="bg-background-light dark:bg-background-dark py-4 text-center text-gray-400">
@@ -30,20 +36,15 @@ function Layout({ children }: { children: React.ReactNode }) {
   )
 }
 
-function MyApp({ Component, pageProps: { session, ...pageProps } }: AppProps) {
+function MyApp({ Component, pageProps }: AppProps) {
   return (
-    <SessionProvider session={session}>
-      <ThemeProvider>
-        <Head>
-          <title>QuickFix AI</title>
-          <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-          <link rel="icon" href="/images/app-icon.svg" type="image/svg+xml" />
-        </Head>
+    <ThemeProvider>
+      <AuthProvider>
         <Layout>
           <Component {...pageProps} />
         </Layout>
-      </ThemeProvider>
-    </SessionProvider>
+      </AuthProvider>
+    </ThemeProvider>
   )
 }
 

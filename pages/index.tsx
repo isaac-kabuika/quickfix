@@ -1,7 +1,7 @@
 import Head from 'next/head'
 import Link from 'next/link'
 import Image from 'next/image'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../store/hooks/useAuth'
 
 export default function Home() {
   const { user } = useAuth()

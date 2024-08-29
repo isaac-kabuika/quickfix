@@ -3,7 +3,7 @@ import { useRouter } from 'next/router'
 import { signUp, signInWithEmail, signInWithGitHub } from '../services/authService'
 import Head from 'next/head'
 import Image from 'next/image'
-import { useAuth } from '../hooks/useAuth'
+import { useAuth } from '../store/hooks/useAuth'
 
 export default function Auth() {
   const router = useRouter()
@@ -30,7 +30,7 @@ export default function Auth() {
       } else {
         await signInWithEmail(email, password)
       }
-      router.push('/dashboard')
+      // The useEffect hook will handle redirection once the user state is updated
     } catch (err) {
       setError((err as Error).message)
     } finally {
@@ -42,7 +42,6 @@ export default function Auth() {
     setIsSubmitting(true)
     try {
       await signInWithGitHub()
-      // The user will be redirected to GitHub for authentication
     } catch (err) {
       setError('Failed to sign in with GitHub')
       console.error(err)
