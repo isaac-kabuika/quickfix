@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 import { AppDispatch, RootState } from '../store'
 import { fetchUserData } from '../store/userActions'
-import { getProjects, deleteProject, createProject } from '../services/projectService'
+import { getProjects, deleteProject, createProject, updateProject } from '../services/projectService'
 import ProjectList from '../components/ProjectList'
 import { supabase } from '../lib/supabaseApiClient'
 import ProtectedRoute from '../components/ProtectedRoute'
@@ -36,6 +36,9 @@ function Dashboard() {
   const [showConnectPopup, setShowConnectPopup] = useState(false)
   const connectButtonRef = useRef<HTMLButtonElement>(null)
   const connectPopupRef = useRef<HTMLDivElement>(null)
+  const [selectedProjects, setSelectedProjects] = useState<Set<string>>(new Set())
+  const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
+  const [editedProjects, setEditedProjects] = useState<{ [key: string]: Project }>({})
 
   useEffect(() => {
     dispatch(fetchUserData())
@@ -208,6 +211,59 @@ function Dashboard() {
     }
   };
 
+  const handleSaveProject = async (projectId: string) => {
+    const updatedProject = editedProjects[projectId];
+    if (!updatedProject) return;
+
+    try {
+      const savedProject = await updateProject(projectId, updatedProject);
+      setProjects(currentProjects => 
+        currentProjects.map(project => 
+          project.id === savedProject.id ? savedProject : project
+        )
+      );
+      setEditingProjectId(null);
+      setSelectedProjects(new Set());
+      // Clear the edited project from the editedProjects state
+      setEditedProjects(prev => {
+        const newState = { ...prev };
+        delete newState[projectId];
+        return newState;
+      });
+    } catch (error) {
+      console.error('Error updating project:', error);
+      setError('Failed to update project');
+    }
+  };
+
+  const handleProjectEdit = (projectId: string, updatedFields: Partial<Project>) => {
+    setEditedProjects(prev => ({
+      ...prev,
+      [projectId]: { ...prev[projectId], ...updatedFields },
+    }));
+  };
+
+  const handleCancelEdit = () => {
+    setEditingProjectId(null);
+    setSelectedProjects(new Set());
+  }
+
+  const handleBulkDelete = async () => {
+    if (selectedProjects.size === 0) return;
+    if (confirm(`Are you sure you want to delete ${selectedProjects.size} project(s)?`)) {
+      try {
+        for (const projectId of Array.from(selectedProjects)) {
+          await deleteProject(projectId);
+        }
+        setProjects(currentProjects => currentProjects.filter(project => !selectedProjects.has(project.id)));
+        setSelectedProjects(new Set());
+      } catch (error) {
+        console.error('Error deleting projects:', error);
+        setError('Failed to delete projects');
+      }
+    }
+  };
+
   const paginatedProjects = filteredProjects.slice(
     (currentPage - 1) * PROJECTS_PER_PAGE,
     currentPage * PROJECTS_PER_PAGE
@@ -318,6 +374,45 @@ function Dashboard() {
               </div>
             )}
           </div>
+          {selectedProjects.size > 0 && (
+            <div className="flex items-center space-x-2">
+              <div className="h-6 w-px bg-gray-300 dark:bg-gray-600 mx-2"></div>
+              {selectedProjects.size === 1 && (
+                <>
+                  <button
+                    onClick={() => {
+                      const projectId = Array.from(selectedProjects)[0];
+                      handleSaveProject(projectId);
+                    }}
+                    className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Save
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                  >
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Cancel
+                  </button>
+                </>
+              )}
+              <button
+                onClick={handleBulkDelete}
+                className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+              >
+                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                </svg>
+                Delete Selected ({selectedProjects.size})
+              </button>
+            </div>
+          )}
         </div>
         {!isGithubConnected && (
           <button
@@ -338,7 +433,7 @@ function Dashboard() {
               <h2 className="text-2xl font-semibold mb-4 text-gray-700 dark:text-gray-300">No Projects Yet</h2>
               <p className="text-gray-600 dark:text-gray-400 mb-8">Get started by creating your first project!</p>
               <button
-                onClick={() => setShowCreatePopup(true)}
+                onClick={() => setShowConnectPopup(true)}
                 className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center justify-center"
               >
                 <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -349,39 +444,16 @@ function Dashboard() {
             </div>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full border-collapse">
-              <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
-                <tr>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">Project Name</th>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">GitHub Repo</th>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-gray-200 dark:border-gray-600">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                {paginatedProjects.map((project, index) => (
-                  <tr key={project.id} className={`hover:bg-gray-50 dark:hover:bg-gray-750 ${index === paginatedProjects.length - 1 ? 'border-b border-gray-200 dark:border-gray-600' : ''}`}>
-                    <td className="px-4 py-2 whitespace-nowrap border-r border-gray-200 dark:border-gray-600">
-                      <Link href={`/projects/${project.id}`} className="text-primary-600 dark:text-primary-400 hover:underline">
-                        {project.name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600">
-                      {project.github_repo}
-                    </td>
-                    <td className="px-4 py-2 whitespace-nowrap text-sm font-medium">
-                      <button
-                        onClick={() => handleDeleteProject(project.id)}
-                        className="text-red-600 hover:text-red-900 dark:hover:text-red-400"
-                      >
-                        Delete
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <ProjectList 
+            projects={paginatedProjects}
+            onDeleteProject={handleDeleteProject}
+            onEditProject={handleProjectEdit}
+            selectedProjects={selectedProjects}
+            setSelectedProjects={setSelectedProjects}
+            editingProjectId={editingProjectId}
+            setEditingProjectId={setEditingProjectId}
+            editedProjects={editedProjects}
+          />
         )}
       </div>
 

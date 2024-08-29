@@ -126,3 +126,15 @@ export const deleteProject = async (projectId: string) => {
     throw new Error('Failed to delete project')
   }
 }
+
+export const updateProject = async (projectId: string, updatedData: Partial<Project>) => {
+  const { data, error } = await supabase
+    .from('projects')
+    .update(updatedData)
+    .eq('id', projectId)
+    .select()
+    .single()
+
+  if (error) throw error
+  return data
+}
