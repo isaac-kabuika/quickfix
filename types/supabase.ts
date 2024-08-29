@@ -86,6 +86,7 @@ export type Database = {
       projects: {
         Row: {
           created_at: string | null
+          env: string | null
           github_repo: string
           id: string
           name: string
@@ -93,6 +94,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          env?: string | null
           github_repo: string
           id?: string
           name: string
@@ -100,6 +102,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          env?: string | null
           github_repo?: string
           id?: string
           name?: string

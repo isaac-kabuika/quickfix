@@ -1,15 +1,18 @@
 import React, { useEffect, useState, useRef, useCallback } from 'react'
 import { useRouter } from 'next/router'
-import { getProject } from '../../services/projectService'
 import { getBugReports, createBugReport, deleteBugReport, updateBugReport } from '../../services/bugReportService'
 import Link from 'next/link'
-import { useAuth } from '../../store/hooks/useAuth'
+import { useAuth } from '../../contexts/AuthContext'
 import ProtectedRoute from '../../components/auth/ProtectedRoute'
+import { WebContainerConsole } from '../../components/project/webContainerConsole'
+import JSZip from 'jszip'
+import { useProject } from '../../store/hooks/useProject'
 
 interface Project {
   id: string;
   name: string;
   github_repo: string;
+  env: string;
 }
 
 interface Bug {
@@ -20,11 +23,28 @@ interface Bug {
   user_id: string;
 }
 
+interface RepoContent {
+  name: string;
+  path: string;
+  type: string;
+}
+
+interface WebContainerStatus {
+  status: string;
+  isReady: boolean;
+  url?: string; // Add this line to store the WebContainer's URL
+}
+
+interface TerminalOutput {
+  type: 'command' | 'output';
+  content: string;
+}
+
 function ProjectPage() {
   const router = useRouter()
   const { projectId } = router.query
   const { user } = useAuth()
-  const [project, setProject] = useState<Project | null>(null)
+  const { project, loading: projectLoading, error: projectError, updateProject } = useProject(projectId as string)
   const [bugs, setBugs] = useState<Bug[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -39,20 +59,25 @@ function ProjectPage() {
   const [selectedBugs, setSelectedBugs] = useState<Set<string>>(new Set())
   const [selectAll, setSelectAll] = useState(false)
   const dataLoadedRef = useRef(false);
+  const [repoContents, setRepoContents] = useState<RepoContent[]>([])
+  const [loadingRepoContents, setLoadingRepoContents] = useState(false)
+  const [webContainerStatus, setWebContainerStatus] = useState<WebContainerStatus>({ status: '', isReady: false })
+  const webContainerConsoleRef = useRef<WebContainerConsole | null>(null)
+  const [uploadedZip, setUploadedZip] = useState<File | null>(null)
+  const [terminalOutput, setTerminalOutput] = useState<TerminalOutput[]>([])
+  const [activeTab, setActiveTab] = useState<'console' | 'ui'>('console')
+  const iframeRef = useRef<HTMLIFrameElement>(null)
+  const consoleRef = useRef<HTMLDivElement>(null)
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
     setLoading(true);
     try {
-      const [projectData, bugsData] = await Promise.all([
-        getProject(projectId),
-        getBugReports(projectId)
-      ]);
-      setProject(projectData);
+      const bugsData = await getBugReports(projectId);
       setBugs(bugsData);
     } catch (err) {
-      console.error('Failed to fetch project or bugs:', err);
-      setError('Failed to load project data');
+      console.error('Failed to fetch bugs:', err);
+      setError('Failed to load bug data');
     } finally {
       setLoading(false);
       dataLoadedRef.current = true;
@@ -60,11 +85,11 @@ function ProjectPage() {
   }, [projectId]);
 
   useEffect(() => {
-    if (projectId && typeof projectId === 'string') {
+    if (projectId && typeof projectId === 'string' && user) {
       dataLoadedRef.current = false;
       loadProjectAndBugs();
     }
-  }, [projectId, loadProjectAndBugs]);
+  }, [projectId, loadProjectAndBugs, user]);
 
   // Reset the dataLoadedRef when the component unmounts
   useEffect(() => {
@@ -142,11 +167,127 @@ function ProjectPage() {
     })
   }
 
-  const expandBugRow = (bugId: string) => {
+  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (file && file.type === 'application/zip') {
+      setUploadedZip(file)
+    } else {
+      setError('Please upload a valid zip file')
+    }
+  }
+
+  const initWebContainer = useCallback(async (zipFile: File) => {
+    if (!webContainerConsoleRef.current) {
+      webContainerConsoleRef.current = new WebContainerConsole((status) => {
+        setWebContainerStatus(prev => ({ ...prev, status }))
+        setTerminalOutput(prev => [...prev, { type: 'output', content: status }])
+      })
+    }
+
+    try {
+      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Initializing WebContainer...' }])
+      await webContainerConsoleRef.current.init()
+      
+      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Loading project files...' }])
+      const zip = new JSZip()
+      const contents = await zip.loadAsync(zipFile)
+      const files: Record<string, any> = {}
+
+      // Determine the root directory
+      const rootDir = contents.files[Object.keys(contents.files)[0]].name.split('/')[0]
+
+      for (const [path, file] of Object.entries(contents.files)) {
+        if (!file.dir) {
+          const content = await file.async('string')
+          let relativePath = path.startsWith(rootDir) ? path.slice(rootDir.length + 1) : path
+          
+          // Ensure the path doesn't start with a slash
+          relativePath = relativePath.replace(/^\//, '')
+
+          // Skip files with empty names
+          if (relativePath === '') continue
+
+          // Create nested structure
+          const pathParts = relativePath.split('/')
+          let currentLevel = files
+          for (let i = 0; i < pathParts.length - 1; i++) {
+            if (!currentLevel[pathParts[i]]) {
+              currentLevel[pathParts[i]] = { directory: {} }
+            }
+            currentLevel = currentLevel[pathParts[i]].directory
+          }
+          currentLevel[pathParts[pathParts.length - 1]] = { file: { contents: content } }
+        }
+      }
+
+      console.log('Files to be loaded into WebContainer:', files)
+
+      if (Object.keys(files).length === 0) {
+        throw new Error('No valid files to load into WebContainer')
+      }
+
+      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Mounting project files...' }])
+      await webContainerConsoleRef.current.loadFiles(files)
+      setTerminalOutput(prev => [...prev, { type: 'output', content: 'Project files mounted successfully' }])
+
+      // Add .env.local file
+      if (project && project.env) {
+        setTerminalOutput(prev => [...prev, { type: 'command', content: 'Adding .env.local file...' }])
+        await webContainerConsoleRef.current.webcontainer?.fs.writeFile('.env.local', project.env)
+        setTerminalOutput(prev => [...prev, { type: 'output', content: '.env.local file added successfully' }])
+      }
+
+      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Installing dependencies...' }])
+      const installProcess = await webContainerConsoleRef.current.webcontainer?.spawn('npm', ['install'])
+      if (installProcess) {
+        installProcess.output.pipeTo(new WritableStream({
+          write(data) {
+            setTerminalOutput(prev => [...prev, { type: 'output', content: data.trim() }])
+          }
+        }))
+        await installProcess.exit
+      }
+      setTerminalOutput(prev => [...prev, { type: 'output', content: 'Dependencies installed successfully' }])
+
+      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Starting development server...' }])
+      const devProcess = await webContainerConsoleRef.current.webcontainer?.spawn('npm', ['run', 'dev'])
+      
+      if (devProcess) {
+        webContainerConsoleRef.current.webcontainer?.on('server-ready', (port: number, url: string) => {
+          console.log('Server is ready on:', url);
+          setWebContainerStatus(prev => ({ ...prev, url, isReady: true }));
+          setTerminalOutput(prev => [...prev, { type: 'output', content: `Server is ready on: ${url}` }]);
+        });
+
+        devProcess.output.pipeTo(new WritableStream({
+          write(data) {
+            const trimmedData = data.trim()
+            if (trimmedData) {
+              setTerminalOutput(prev => [...prev, { type: 'output', content: trimmedData }])
+            }
+          }
+        }))
+        setWebContainerStatus(prev => ({ ...prev, isReady: true }))
+        setTerminalOutput(prev => [...prev, { type: 'output', content: 'Development server is now running' }])
+      } else {
+        throw new Error('Failed to start development server')
+      }
+
+    } catch (error) {
+      console.error('Error initializing WebContainer:', error)
+      setWebContainerStatus(prev => ({ ...prev, status: `WebContainer initialization failed: ${error}`, isReady: false }))
+      setError(`WebContainer initialization failed: ${error}`)
+      setTerminalOutput(prev => [...prev, { type: 'output', content: `Error: ${error}` }])
+    }
+  }, [project])
+
+  const expandBugRow = async (bugId: string) => {
     if (expandedBugId === bugId) {
       setExpandedBugId(null)
       setEditedBug(null)
       setSelectedBugs(new Set())
+      setUploadedZip(null)
+      setWebContainerStatus({ status: '', isReady: false })
     } else {
       setExpandedBugId(bugId)
       const selectedBug = bugs.find(bug => bug.id === bugId)
@@ -204,6 +345,22 @@ function ProjectPage() {
     setEditedBug(null)
     setSelectedBugs(new Set())
   }
+
+  const stopWebContainer = useCallback(async () => {
+    if (webContainerConsoleRef.current) {
+      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Stopping server...' }]);
+      await webContainerConsoleRef.current.stopServer();
+      setWebContainerStatus(prev => ({ ...prev, isReady: false }));
+      setTerminalOutput(prev => [...prev, { type: 'output', content: 'Server stopped' }]);
+    }
+  }, []);
+
+  // Add this new useEffect
+  useEffect(() => {
+    if (activeTab === 'console' && consoleRef.current) {
+      consoleRef.current.scrollTop = consoleRef.current.scrollHeight
+    }
+  }, [activeTab, terminalOutput])
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
   if (error) return <div className="text-center text-red-500">{error}</div>
@@ -441,35 +598,129 @@ function ProjectPage() {
                     {selectedBugs.has(bug.id) && (
                       <tr className="bg-gray-50 dark:bg-gray-700">
                         <td colSpan={4} className="px-4 py-2">
-                          <div className="flex flex-col space-y-2">
-                            <div className="flex space-x-4">
-                              <div className="flex-grow">
-                                <label htmlFor={`bugDescription-${bug.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                  Description
-                                </label>
-                                <textarea
-                                  id={`bugDescription-${bug.id}`}
-                                  value={editedBug?.id === bug.id ? editedBug.description : bug.description}
-                                  onChange={(e) => setEditedBug({...bug, description: e.target.value})}
-                                  className="w-full p-2 border rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100"
-                                  rows={3}
+                          <div className="flex space-x-4">
+                            <div className="flex-1">
+                              <div className="flex space-x-4">
+                                <div className="flex-grow">
+                                  <label htmlFor={`bugDescription-${bug.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Description
+                                  </label>
+                                  <textarea
+                                    id={`bugDescription-${bug.id}`}
+                                    value={editedBug?.id === bug.id ? editedBug.description : bug.description}
+                                    onChange={(e) => setEditedBug({...bug, description: e.target.value})}
+                                    className="w-full p-2 border rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100"
+                                    rows={3}
+                                  />
+                                </div>
+                                <div className="w-48">
+                                  <label htmlFor={`bugStatus-${bug.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    Status
+                                  </label>
+                                  <select
+                                    id={`bugStatus-${bug.id}`}
+                                    value={editedBug?.id === bug.id ? editedBug.status : bug.status}
+                                    onChange={(e) => setEditedBug({...bug, status: e.target.value})}
+                                    className="w-full p-2 border rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100"
+                                  >
+                                    <option value="open">Open</option>
+                                    <option value="in_progress">In Progress</option>
+                                    <option value="resolved">Resolved</option>
+                                  </select>
+                                </div>
+                              </div>
+                              <div className="mt-4">
+                                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Upload Project Files</h4>
+                                <input
+                                  type="file"
+                                  accept=".zip"
+                                  onChange={handleFileUpload}
+                                  className="mb-2"
                                 />
+                                {uploadedZip && (
+                                  <button
+                                    onClick={() => initWebContainer(uploadedZip)}
+                                    className="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded"
+                                  >
+                                    Initialize WebContainer
+                                  </button>
+                                )}
                               </div>
-                              <div className="w-48">
-                                <label htmlFor={`bugStatus-${bug.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                  Status
-                                </label>
-                                <select
-                                  id={`bugStatus-${bug.id}`}
-                                  value={editedBug?.id === bug.id ? editedBug.status : bug.status}
-                                  onChange={(e) => setEditedBug({...bug, status: e.target.value})}
-                                  className="w-full p-2 border rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100"
+                              <div className="mt-4">
+                                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">WebContainer Status</h4>
+                                {webContainerStatus.isReady ? (
+                                  <div>
+                                    <p className="text-green-500">WebContainer is ready!</p>
+                                    <p className="text-gray-600 dark:text-gray-400">{webContainerStatus.status}</p>
+                                  </div>
+                                ) : (
+                                  <div>
+                                    <p className="text-yellow-500">WebContainer is initializing...</p>
+                                    <p className="text-gray-600 dark:text-gray-400">{webContainerStatus.status}</p>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex justify-between items-center mb-2">
+                                <div className="flex space-x-2">
+                                  <button
+                                    onClick={() => setActiveTab('console')}
+                                    className={`px-3 py-1 rounded-t-md ${
+                                      activeTab === 'console'
+                                        ? 'bg-black text-green-400'
+                                        : 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+                                    }`}
+                                  >
+                                    Console
+                                  </button>
+                                  <button
+                                    onClick={() => setActiveTab('ui')}
+                                    className={`px-3 py-1 rounded-t-md ${
+                                      activeTab === 'ui'
+                                        ? 'bg-black text-green-400'
+                                        : 'bg-gray-200 text-gray-700 dark:bg-gray-600 dark:text-gray-300'
+                                    }`}
+                                  >
+                                    UI
+                                  </button>
+                                </div>
+                                <button
+                                  onClick={stopWebContainer}
+                                  className="bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded text-sm"
+                                  disabled={!webContainerStatus.isReady}
                                 >
-                                  <option value="open">Open</option>
-                                  <option value="in_progress">In Progress</option>
-                                  <option value="resolved">Resolved</option>
-                                </select>
+                                  Stop Server
+                                </button>
                               </div>
+                              {activeTab === 'console' ? (
+                                <div 
+                                  ref={consoleRef}
+                                  className="bg-black text-green-400 p-4 rounded h-64 overflow-y-auto font-mono text-sm"
+                                >
+                                  {terminalOutput.map((line, index) => (
+                                    <div key={index} className={line.type === 'command' ? 'text-yellow-400' : ''}>
+                                      {line.type === 'command' ? '$ ' : ''}
+                                      {line.content}
+                                    </div>
+                                  ))}
+                                </div>
+                              ) : (
+                                <div className="bg-white border border-gray-300 rounded h-64 overflow-hidden">
+                                  {webContainerStatus.url ? (
+                                    <iframe
+                                      ref={iframeRef}
+                                      src={webContainerStatus.url}
+                                      className="w-full h-full"
+                                      title="WebContainer App"
+                                    />
+                                  ) : (
+                                    <div className="flex items-center justify-center h-full text-gray-500">
+                                      Waiting for the app to start...
+                                    </div>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </td>

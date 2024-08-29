@@ -12,6 +12,7 @@ interface Project {
   id: string;
   name: string;
   github_repo: string;
+  env: string | null;
 }
 
 const PROJECTS_PER_PAGE = 10
@@ -197,7 +198,6 @@ function Dashboard() {
       );
       setEditingProjectId(null);
       setSelectedProjects(new Set());
-      // Clear the edited project from the editedProjects state
       setEditedProjects(prev => {
         const newState = { ...prev };
         delete newState[projectId];

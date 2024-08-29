@@ -78,15 +78,18 @@ export const getProject = async (projectId: string): Promise<Project> => {
 
 export const getProjectFiles = async (projectId: string, userId: string) => {
   const project = await getProject(projectId)
-  const { data: userData, error: userError } = await supabase
-    .from('users')
-    .select('github_access_token')
-    .eq('id', userId)
-    .single()
+  
+  // Get the user's session to retrieve the GitHub access token
+  const { data: { session }, error: sessionError } = await supabase.auth.getSession()
+  if (sessionError) throw sessionError
 
-  if (userError) throw userError
+  const githubAccessToken = session?.provider_token
 
-  const githubClient = createGithubClient(userData.github_access_token)
+  if (!githubAccessToken) {
+    throw new Error('GitHub access token not found')
+  }
+
+  const githubClient = createGithubClient(githubAccessToken)
   const [owner, repo] = project.github_repo.split('/').slice(-2)
   const files = await githubClient.getRepoContents(owner, repo)
   
