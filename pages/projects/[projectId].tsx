@@ -669,10 +669,10 @@ function ProjectPage() {
                     {selectedBugs.has(bug.id) && (
                       <tr className="bg-gray-50 dark:bg-gray-700">
                         <td colSpan={4} className="px-4 py-4">
-                          <div className="max-w-4xl">
+                          <div className="w-full">
                             <div className="flex space-x-4">
                               {/* Left side content */}
-                              <div className="flex-grow flex flex-col space-y-4">
+                              <div className="w-1/2 flex flex-col space-y-4">
                                 <div className="flex items-center space-x-4">
                                   <div className="flex-grow">
                                     <div className="flex items-center space-x-2">
@@ -828,7 +828,7 @@ function ProjectPage() {
                               <div className="w-px bg-gray-200 dark:bg-gray-600"></div>
 
                               {/* Right side content (Description) */}
-                              <div className="w-1/3 pl-4">
+                              <div className="w-1/2 pl-4">
                                 <div className="flex justify-between items-center mb-2">
                                   <button
                                     onClick={() => {
