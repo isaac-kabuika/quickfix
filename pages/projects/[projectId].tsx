@@ -138,8 +138,12 @@ const CompilingAnimation = () => {
   );
 };
 
-// Add this new component for showing file details and the start button
-const UploadedFileDetails = ({ file, onStart }) => {
+interface UploadedFileDetailsProps {
+  file: File;
+  onStart: () => void;
+}
+
+const UploadedFileDetails: React.FC<UploadedFileDetailsProps> = ({ file, onStart }) => {
   return (
     <div className="flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
       <div className="mb-6 text-center">
@@ -166,7 +170,13 @@ const UploadedFileDetails = ({ file, onStart }) => {
   );
 };
 
-const TaskChip = ({ task, isDone, isAutomated = false }) => (
+interface TaskChipProps {
+  task: string;
+  isDone: boolean;
+  isAutomated?: boolean;
+}
+
+const TaskChip: React.FC<TaskChipProps> = ({ task, isDone, isAutomated = false }) => (
   <div className="flex items-center space-x-2 rounded-full px-3 py-1 text-sm shadow-sm w-fit bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
     {isAutomated ? (
       <LightningBoltIcon className={`w-4 h-4 ${isDone ? 'text-green-500' : 'text-gray-400'}`} />
@@ -177,8 +187,13 @@ const TaskChip = ({ task, isDone, isAutomated = false }) => (
   </div>
 );
 
-// Replace the BugDescriptionEditPopup with this new component
-const BugDescriptionEditDropdown = ({ bug, onSave, onClose }) => {
+interface BugDescriptionEditDropdownProps {
+  bug: Bug;
+  onSave: (description: string) => void;
+  onClose: () => void;
+}
+
+const BugDescriptionEditDropdown: React.FC<BugDescriptionEditDropdownProps> = ({ bug, onSave, onClose }) => {
   const [description, setDescription] = useState(bug.description);
 
   return (
@@ -567,7 +582,7 @@ function ProjectPage() {
     }
   };
 
-  const onDrop = useCallback((acceptedFiles) => {
+  const onDrop = useCallback((acceptedFiles: File[]) => {
     if (acceptedFiles.length > 0) {
       const file = acceptedFiles[0]
       if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
@@ -580,7 +595,7 @@ function ProjectPage() {
     }
   }, [])
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: '.zip' })
+  const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: { 'application/zip': ['.zip'] } })
 
   const handleSaveBugDescription = async (newDescription: string) => {
     if (!editingBugId) return;
@@ -817,7 +832,7 @@ function ProjectPage() {
                             {editingBugId === bug.id && (
                               <BugDescriptionEditDropdown
                                 bug={bug}
-                                onSave={(newDescription) => {
+                                onSave={(newDescription: string) => {
                                   handleSaveBugDescription(newDescription);
                                   setEditingBugId(null);
                                 }}
@@ -930,7 +945,7 @@ function ProjectPage() {
                                             className="flex flex-col items-center justify-center h-full bg-white dark:bg-gray-800 cursor-pointer"
                                             onClick={(e) => {
                                               if (!uploadedZip) {
-                                                getRootProps().onClick(e);
+                                                getRootProps().onClick?.(e);
                                               }
                                             }}
                                           >
