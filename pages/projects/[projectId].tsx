@@ -46,12 +46,12 @@ const LoadFilesAnimation = () => {
   return (
     <div className="flex flex-col items-center justify-center">
       <div className="relative w-24 h-24 mb-4">
-        <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900 rounded-full opacity-75"></div>
-        <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900 rounded-full animate-ping" style={{ animationDuration: '3s', animationIterationCount: 'infinite' }}></div>
-        <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900 rounded-full animate-ping" style={{ animationDuration: '3s', animationDelay: '1s', animationIterationCount: 'infinite' }}></div>
+        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-full opacity-75"></div>
+        <div className="absolute inset-0 bg-gray-300 dark:bg-gray-600 rounded-full animate-ping" style={{ animationDuration: '3s', animationIterationCount: 'infinite' }}></div>
+        <div className="absolute inset-0 bg-gray-300 dark:bg-gray-600 rounded-full animate-ping" style={{ animationDuration: '3s', animationDelay: '1s', animationIterationCount: 'infinite' }}></div>
         <div className="relative flex items-center justify-center w-full h-full">
           <svg 
-            className="w-12 h-12 text-blue-600 dark:text-blue-400" 
+            className="w-12 h-12 text-gray-600 dark:text-gray-300" 
             viewBox="0 0 24 24" 
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -66,10 +66,10 @@ const LoadFilesAnimation = () => {
           </svg>
         </div>
       </div>
-      <p className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+      <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Ready to Start
       </p>
-      <p className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-xs">
+      <p className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-xs">
         Select your project ZIP file to begin the local process
       </p>
     </div>
@@ -94,12 +94,12 @@ const CompilingAnimation = () => {
   }, []);
 
   return (
-    <div className="flex flex-col items-center justify-center h-full bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700">
+    <div className="flex flex-col items-center justify-center h-full bg-white dark:bg-gray-800">
       <div className="relative w-24 h-24 mb-4">
-        <div className="absolute inset-0 bg-blue-100 dark:bg-blue-900 rounded-full opacity-25 animate-pulse" style={{ animationDuration: '3s' }}></div>
+        <div className="absolute inset-0 bg-gray-200 dark:bg-gray-700 rounded-full opacity-25 animate-pulse" style={{ animationDuration: '3s' }}></div>
         <div className="relative flex items-center justify-center w-full h-full">
           <svg 
-            className="w-12 h-12 text-blue-600 dark:text-blue-400" 
+            className="w-12 h-12 text-gray-600 dark:text-gray-300" 
             viewBox="0 0 24 24" 
             fill="none"
             xmlns="http://www.w3.org/2000/svg"
@@ -123,10 +123,10 @@ const CompilingAnimation = () => {
           </svg>
         </div>
       </div>
-      <p className="text-lg font-semibold text-gray-700 dark:text-gray-300 mb-2">
+      <p className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">
         Compiling Application
       </p>
-      <div className="text-sm text-gray-500 dark:text-gray-400 text-center max-w-xs h-8 flex items-center justify-center">
+      <div className="text-sm text-gray-600 dark:text-gray-400 text-center max-w-xs h-8 flex items-center justify-center">
         <div className="transition-opacity duration-500 max-w-xs h-8 flex items-center justify-center">
           <span className="transition-opacity duration-500">
             {messages[currentMessage]}
@@ -142,7 +142,7 @@ const UploadedFileDetails = ({ file, onStart }) => {
   return (
     <div className="flex flex-col items-center justify-center" onClick={(e) => e.stopPropagation()}>
       <div className="mb-6 text-center">
-        <svg className="w-16 h-16 mx-auto text-blue-500 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <svg className="w-16 h-16 mx-auto text-gray-600 dark:text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
         </svg>
         <p className="mt-3 text-lg font-semibold text-gray-800 dark:text-gray-200">{file.name}</p>
@@ -787,7 +787,7 @@ function ProjectPage() {
                                             : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
                                         }`}
                                       >
-                                        UI
+                                        App
                                       </button>
                                       <button
                                         onClick={() => setActiveTab('console')}
@@ -797,7 +797,7 @@ function ProjectPage() {
                                             : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
                                         }`}
                                       >
-                                        Logger
+                                        Logs
                                       </button>
                                     </div>
                                     {webContainerStatus.isReady && (
@@ -856,7 +856,7 @@ function ProjectPage() {
                                         ) : (
                                           <div 
                                             {...getRootProps()} 
-                                            className="flex flex-col items-center justify-center h-full bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-gray-800 dark:to-gray-700 cursor-pointer"
+                                            className="flex flex-col items-center justify-center h-full bg-white dark:bg-gray-800 cursor-pointer"
                                             onClick={(e) => {
                                               if (!uploadedZip) {
                                                 getRootProps().onClick(e);
