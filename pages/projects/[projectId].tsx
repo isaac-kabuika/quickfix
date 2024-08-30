@@ -8,6 +8,7 @@ import { WebContainerConsole } from '../../components/project/webContainerConsol
 import JSZip from 'jszip'
 import { useProject } from '../../store/hooks/useProject'
 import { useDropzone } from 'react-dropzone'
+import { LightningBoltIcon } from '@heroicons/react/solid'
 
 interface Project {
   id: string;
@@ -165,6 +166,50 @@ const UploadedFileDetails = ({ file, onStart }) => {
   );
 };
 
+const TaskChip = ({ task, isDone, isAutomated = false }) => (
+  <div className="flex items-center space-x-2 rounded-full px-3 py-1 text-sm shadow-sm w-fit bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200">
+    {isAutomated ? (
+      <LightningBoltIcon className={`w-4 h-4 ${isDone ? 'text-green-500' : 'text-gray-400'}`} />
+    ) : (
+      <div className={`w-2 h-2 rounded-full ${isDone ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+    )}
+    <span>{task}</span>
+  </div>
+);
+
+// Replace the BugDescriptionEditPopup with this new component
+const BugDescriptionEditDropdown = ({ bug, onSave, onClose }) => {
+  const [description, setDescription] = useState(bug.description);
+
+  return (
+    <div className="absolute z-10 mt-2 w-96 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none">
+      <div className="px-4 py-2">
+        <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-2">Edit Bug Description</h3>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="w-full p-2 text-sm bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500 text-gray-800 dark:text-gray-200 mb-2"
+          rows={3}
+        />
+        <div className="flex justify-end space-x-2">
+          <button
+            onClick={onClose}
+            className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => onSave(description)}
+            className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+          >
+            Save
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 function ProjectPage() {
   const router = useRouter()
   const { projectId } = router.query
@@ -196,6 +241,7 @@ function ProjectPage() {
   const [compilationStatus, setCompilationStatus] = useState<'not-started' | 'compiling' | 'ready'>('not-started');
   const [isFullScreen, setIsFullScreen] = useState(false);
   const fullScreenContainerRef = useRef<HTMLDivElement>(null);
+  const [editingBugId, setEditingBugId] = useState<string | null>(null);
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -351,6 +397,7 @@ function ProjectPage() {
   }
 
   const initWebContainer = useCallback(async (zipFile: File) => {
+    resetWebContainerState();
     setWebContainerStatus(prev => ({ ...prev, status: 'starting', isLoading: true }));
     if (!webContainerConsoleRef.current) {
       webContainerConsoleRef.current = new WebContainerConsole((status) => {
@@ -486,11 +533,20 @@ function ProjectPage() {
     if (webContainerConsoleRef.current) {
       setTerminalOutput(prev => [...prev, { type: 'command', content: 'Stopping server...' }]);
       await webContainerConsoleRef.current.stopServer();
-      setWebContainerStatus(prev => ({ ...prev, isReady: false, isLoading: false }));
       setTerminalOutput(prev => [...prev, { type: 'output', content: 'Server stopped' }]);
-      setCompilationStatus('not-started');
+      resetWebContainerState();
     }
   }, []);
+
+  const resetWebContainerState = () => {
+    setWebContainerStatus({ status: '', isReady: false, isLoading: false });
+    setUploadedZip(null);
+    setTerminalOutput([]);
+    setCompilationStatus('not-started');
+    if (webContainerConsoleRef.current) {
+      webContainerConsoleRef.current = null;
+    }
+  };
 
   // Add this new useEffect
   useEffect(() => {
@@ -525,6 +581,36 @@ function ProjectPage() {
   }, [])
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop, accept: '.zip' })
+
+  const handleSaveBugDescription = async (newDescription: string) => {
+    if (!editingBugId) return;
+    try {
+      const updatedBug = await updateBugReport(editingBugId, { ...editedBug, description: newDescription });
+      setBugs(currentBugs => currentBugs.map(bug => bug.id === updatedBug.id ? updatedBug : bug));
+      setEditingBugId(null);
+    } catch (error) {
+      console.error('Error updating bug:', error);
+      setError('Failed to update bug');
+    }
+  };
+
+  const handleFixBugClick = async () => {
+    if (!user || !project) return;
+    setIsCreatingBug(true);
+
+    try {
+      const newBug = await createBugReport(project.id, "Will be replaced", user.id);
+      setBugs(currentBugs => [newBug, ...currentBugs]);
+      setSelectedBugId(newBug.id);
+      setExpandedBugId(newBug.id);
+      setEditedBug(newBug);
+    } catch (error) {
+      console.error('Error creating bug:', error);
+      setError('Failed to create bug: ' + (error instanceof Error ? error.message : String(error)));
+    } finally {
+      setIsCreatingBug(false);
+    }
+  };
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
   if (error) return <div className="text-center text-red-500">{error}</div>
@@ -567,62 +653,22 @@ function ProjectPage() {
             <div className="flex items-center space-x-2">
               <div className="relative">
                 <button
-                  ref={reportBugButtonRef}
-                  onClick={() => setShowReportBugPopup(!showReportBugPopup)}
+                  onClick={handleFixBugClick}
                   className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                  disabled={isCreatingBug}
                 >
-                  <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                  </svg>
-                  Fix Bug
+                  {isCreatingBug ? (
+                    <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  ) : (
+                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                    </svg>
+                  )}
+                  {isCreatingBug ? 'Creating...' : 'Fix Bug'}
                 </button>
-                {showReportBugPopup && (
-                  <div 
-                    ref={reportBugPopupRef}
-                    className="absolute z-10 mt-2 w-80 bg-white dark:bg-gray-800 rounded-md shadow-lg py-1 ring-1 ring-black ring-opacity-5 focus:outline-none"
-                  >
-                    <div className="px-4 py-2">
-                      <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100 mb-4">Fix Bug</h3>
-                      <form onSubmit={(e) => {
-                        e.preventDefault();
-                        const formData = new FormData(e.currentTarget);
-                        const description = formData.get('description') as string;
-                        handleBugCreated({ description });
-                      }}>
-                        <div className="mb-4">
-                          <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Bug Description
-                          </label>
-                          <textarea
-                            id="description"
-                            name="description"
-                            rows={3}
-                            placeholder="Describe the bug..."
-                            className="w-full p-2 text-sm bg-gray-50 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-600 text-gray-900 dark:text-gray-100"
-                            required
-                          />
-                        </div>
-                        <button
-                          type="submit"
-                          className="w-full bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center justify-center"
-                          disabled={isCreatingBug}
-                        >
-                          {isCreatingBug ? (
-                            <svg className="animate-spin h-5 w-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                          ) : (
-                            <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                            </svg>
-                          )}
-                          {isCreatingBug ? 'Initializing...' : 'Fix Bug'}
-                        </button>
-                      </form>
-                    </div>
-                  </div>
-                )}
               </div>
               {selectedBugId && (
                 <>
@@ -751,10 +797,35 @@ function ProjectPage() {
                         </div>
                       </td>
                       <td 
-                        className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 align-top cursor-pointer"
+                        className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 align-top cursor-pointer relative"
                         onClick={() => handleRowClick(bug.id)}
                       >
-                        {bug.description}
+                        <div className="flex justify-between items-center">
+                          <span>{bug.description}</span>
+                          <div className="relative">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingBugId(editingBugId === bug.id ? null : bug.id);
+                              }}
+                              className="ml-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                              </svg>
+                            </button>
+                            {editingBugId === bug.id && (
+                              <BugDescriptionEditDropdown
+                                bug={bug}
+                                onSave={(newDescription) => {
+                                  handleSaveBugDescription(newDescription);
+                                  setEditingBugId(null);
+                                }}
+                                onClose={() => setEditingBugId(null)}
+                              />
+                            )}
+                          </div>
+                        </div>
                       </td>
                       <td 
                         className="px-4 py-2 text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600 align-top cursor-pointer"
@@ -840,9 +911,9 @@ function ProjectPage() {
                                                   className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
                                                 >
                                                   <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
                                                   </svg>
-                                                  Full Screen
+                                                  Start Bug Session
                                                 </button>
                                               </div>
                                             </>
@@ -897,54 +968,38 @@ function ProjectPage() {
                               {/* Separator */}
                               <div className="w-px bg-gray-200 dark:bg-gray-600"></div>
 
-                              {/* Right side content (Description) */}
+                              {/* Right side content (Description and Task Chips) */}
                               <div className="w-1/2 pl-4">
-                                <div className="flex justify-between items-center mb-2">
-                                  <button
-                                    onClick={() => {
-                                      setExpandedDescriptions(prev => {
-                                        const newSet = new Set(prev);
-                                        if (newSet.has(bug.id)) {
-                                          newSet.delete(bug.id);
-                                        } else {
-                                          newSet.add(bug.id);
-                                        }
-                                        return newSet;
-                                      });
-                                    }}
-                                    className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
-                                  >
-                                    {expandedDescriptions.has(bug.id) ? (
-                                      <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                                        </svg>
-                                        Collapse Description
-                                      </>
-                                    ) : (
-                                      <>
-                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                        </svg>
-                                        Expand Description
-                                      </>
-                                    )}
-                                  </button>
-                                </div>
-                                {expandedDescriptions.has(bug.id) && (
+                                <div className="flex flex-col">
+                                  {expandedDescriptions.has(bug.id) && (
+                                    <div className="mb-4">
+                                      <label htmlFor={`bugDescription-${bug.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Description
+                                      </label>
+                                      <textarea
+                                        id={`bugDescription-${bug.id}`}
+                                        value={editedBug?.id === bug.id ? editedBug.description : bug.description}
+                                        onChange={(e) => setEditedBug({...bug, description: e.target.value})}
+                                        className="w-full p-2 border rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
+                                        rows={3}
+                                      />
+                                    </div>
+                                  )}
                                   <div className="mt-2">
-                                    <label htmlFor={`bugDescription-${bug.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                      Description
-                                    </label>
-                                    <textarea
-                                      id={`bugDescription-${bug.id}`}
-                                      value={editedBug?.id === bug.id ? editedBug.description : bug.description}
-                                      onChange={(e) => setEditedBug({...bug, description: e.target.value})}
-                                      className="w-full p-2 border rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
-                                      rows={3}
-                                    />
+                                    <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tasks</h3>
+                                      <div>
+                                        <div className="flex flex-col space-y-2">
+                                          <TaskChip task="Start app" isDone={true} />
+                                          <TaskChip task="Record bug session" isDone={false} />
+                                          <TaskChip task="Analyze" isDone={false} isAutomated={true} />
+                                          <TaskChip task="Reproduce" isDone={false} isAutomated={true} />
+                                          <TaskChip task="Draft" isDone={false} isAutomated={true} />
+                                          <TaskChip task="Test" isDone={false} isAutomated={true} />
+                                          <TaskChip task="Submit" isDone={false} isAutomated={true} />
+                                        </div>
+                                      </div>
                                   </div>
-                                )}
+                                </div>
                               </div>
                             </div>
                           </div>

@@ -11,6 +11,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "^0.27.0",
     "@auth/supabase-adapter": "^1.4.2",
+    "@heroicons/react": "^1.0.6",
     "@next-auth/supabase-adapter": "^0.2.1",
     "@octokit/rest": "^21.0.2",
     "@reduxjs/toolkit": "^2.2.7",
