@@ -57,8 +57,7 @@ function ProjectPage() {
   const reportBugPopupRef = useRef<HTMLDivElement>(null)
   const [expandedBugId, setExpandedBugId] = useState<string | null>(null)
   const [editedBug, setEditedBug] = useState<Bug | null>(null)
-  const [selectedBugs, setSelectedBugs] = useState<Set<string>>(new Set())
-  const [selectAll, setSelectAll] = useState(false)
+  const [selectedBugId, setSelectedBugId] = useState<string | null>(null)
   const dataLoadedRef = useRef(false);
   const [repoContents, setRepoContents] = useState<RepoContent[]>([])
   const [loadingRepoContents, setLoadingRepoContents] = useState(false)
@@ -141,11 +140,57 @@ function ProjectPage() {
     }
   }
 
-  const handleBugDelete = async (bugId: string) => {
+  const toggleBugSelection = (bugId: string, e?: React.MouseEvent) => {
+    // If this was triggered by a radio button click, stop propagation
+    if (e) {
+      e.stopPropagation();
+    }
+
+    if (selectedBugId !== bugId) {
+      if (selectedBugId) {
+        // Prompt for confirmation before selecting a different bug
+        if (confirm("Are you sure you want to select a different bug? Any unsaved changes will be lost.")) {
+          setSelectedBugId(bugId);
+          expandBugRow(bugId);
+        }
+      } else {
+        setSelectedBugId(bugId);
+        expandBugRow(bugId);
+      }
+    }
+    // If clicking on the same bug, do nothing (don't unselect)
+  }
+
+  const expandBugRow = (bugId: string) => {
+    setExpandedBugId(bugId)
+    const selectedBug = bugs.find(bug => bug.id === bugId)
+    setEditedBug(selectedBug || null)
+    setSelectedBugId(bugId)
+  }
+
+  const handleSave = async () => {
+    if (!editedBug) return
+    try {
+      const updatedBug = await updateBugReport(editedBug.id, editedBug)
+      setBugs(currentBugs => currentBugs.map(bug => bug.id === updatedBug.id ? updatedBug : bug))
+      setExpandedBugId(null)
+      setEditedBug(null)
+      setSelectedBugId(null)
+    } catch (error) {
+      console.error('Error updating bug:', error)
+      setError('Failed to update bug')
+    }
+  }
+
+  const handleDeleteSelected = async () => {
+    if (!selectedBugId) return
     if (confirm('Are you sure you want to delete this bug?')) {
       try {
-        await deleteBugReport(bugId)
-        setBugs(currentBugs => currentBugs.filter(bug => bug.id !== bugId))
+        await deleteBugReport(selectedBugId)
+        setBugs(currentBugs => currentBugs.filter(bug => bug.id !== selectedBugId))
+        setSelectedBugId(null)
+        setExpandedBugId(null)
+        setEditedBug(null)
       } catch (error) {
         console.error('Error deleting bug:', error)
         setError('Failed to delete bug')
@@ -153,23 +198,21 @@ function ProjectPage() {
     }
   }
 
-  const toggleBugSelection = (bugId: string, isCheckboxClick: boolean) => {
-    setSelectedBugs(prev => {
-      const newSet = new Set(prev)
-      if (isCheckboxClick) {
-        // For checkbox clicks, toggle the selection
-        if (newSet.has(bugId)) {
-          newSet.delete(bugId)
-        } else {
-          newSet.add(bugId)
-        }
-      } else {
-        // For row clicks, select only this bug
-        newSet.clear()
-        newSet.add(bugId)
+  const handleRowClick = (bugId: string) => {
+    toggleBugSelection(bugId);
+  }
+
+  const handleCancel = () => {
+    if (selectedBugId) {
+      // Prompt for confirmation before unselecting
+      if (confirm("Are you sure you want to cancel? Any unsaved changes will be lost.")) {
+        setExpandedBugId(null);
+        setEditedBug(null);
+        setSelectedBugId(null);
+        setUploadedZip(null);
+        setWebContainerStatus({ status: '', isReady: false, isLoading: false });
       }
-      return newSet
-    })
+    }
   }
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -315,71 +358,6 @@ function ProjectPage() {
     }
   }, [project])
 
-  const expandBugRow = async (bugId: string) => {
-    if (expandedBugId === bugId) {
-      setExpandedBugId(null)
-      setEditedBug(null)
-      setSelectedBugs(new Set())
-      setUploadedZip(null)
-      setWebContainerStatus({ status: '', isReady: false, isLoading: false })
-    } else {
-      setExpandedBugId(bugId)
-      const selectedBug = bugs.find(bug => bug.id === bugId)
-      setEditedBug(selectedBug || null)
-      setSelectedBugs(new Set([bugId])) // Select only this bug
-    }
-  }
-
-  const handleSelectAll = () => {
-    if (selectAll) {
-      setSelectedBugs(new Set())
-    } else {
-      setSelectedBugs(new Set(filteredBugs.map(bug => bug.id)))
-    }
-    setSelectAll(!selectAll)
-    setExpandedBugId(null)
-    setEditedBug(null)
-  }
-
-  const handleSave = async () => {
-    if (!editedBug) return
-    try {
-      const updatedBug = await updateBugReport(editedBug.id, editedBug)
-      setBugs(currentBugs => currentBugs.map(bug => bug.id === updatedBug.id ? updatedBug : bug))
-      setExpandedBugId(null)
-      setEditedBug(null)
-      setSelectedBugs(new Set())
-    } catch (error) {
-      console.error('Error updating bug:', error)
-      setError('Failed to update bug')
-    }
-  }
-
-  const handleBulkDelete = async () => {
-    if (confirm('Are you sure you want to delete the selected bug(s)?')) {
-      try {
-        for (const bugId of Array.from(selectedBugs)) {
-          await deleteBugReport(bugId)
-        }
-        setBugs(currentBugs => currentBugs.filter(bug => !selectedBugs.has(bug.id)))
-        setSelectedBugs(new Set())
-      } catch (error) {
-        console.error('Error deleting bugs:', error)
-        setError('Failed to delete bugs')
-      }
-    }
-  }
-
-  const handleRowClick = (bugId: string) => {
-    expandBugRow(bugId)
-  }
-
-  const handleCancel = () => {
-    setExpandedBugId(null)
-    setEditedBug(null)
-    setSelectedBugs(new Set())
-  }
-
   const stopWebContainer = useCallback(async () => {
     if (webContainerConsoleRef.current) {
       setTerminalOutput(prev => [...prev, { type: 'command', content: 'Stopping server...' }]);
@@ -507,40 +485,36 @@ function ProjectPage() {
                   </div>
                 )}
               </div>
-              {selectedBugs.size > 0 && (
+              {selectedBugId && (
                 <>
                   <div className="h-6 w-px bg-gray-300 dark:bg-gray-600"></div>
                   <div id="action-buttons" className="flex items-center space-x-2">
-                    {selectedBugs.size === 1 && (
-                      <>
-                        <button
-                          onClick={handleSave}
-                          className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
-                        >
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                          </svg>
-                          Save
-                        </button>
-                        <button
-                          onClick={handleCancel}
-                          className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
-                        >
-                          <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                          Cancel
-                        </button>
-                      </>
-                    )}
                     <button
-                      onClick={handleBulkDelete}
+                      onClick={handleSave}
+                      className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                      Save
+                    </button>
+                    <button
+                      onClick={handleCancel}
+                      className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                    >
+                      <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleDeleteSelected}
                       className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
                     >
                       <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
-                      Delete Selected ({selectedBugs.size})
+                      Delete Selected
                     </button>
                   </div>
                 </>
@@ -610,14 +584,7 @@ function ProjectPage() {
               <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                 <tr>
                   <th className="w-16 px-2 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">
-                    <div className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={selectAll}
-                        onChange={handleSelectAll}
-                        className="rounded border-gray-300 text-black dark:text-white bg-white dark:bg-gray-700 checked:bg-black dark:checked:bg-white focus:ring-black dark:focus:ring-white"
-                      />
-                    </div>
+                    {/* Remove the checkbox here */}
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">Description</th>
                   <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">Status</th>
@@ -629,7 +596,7 @@ function ProjectPage() {
                   <React.Fragment key={bug.id}>
                     <tr 
                       className={`border-b border-gray-200 dark:border-gray-600 ${
-                        selectedBugs.has(bug.id)
+                        selectedBugId === bug.id
                           ? 'bg-white dark:bg-gray-700'
                           : 'hover:bg-gray-50 dark:hover:bg-gray-750'
                       }`}
@@ -637,13 +604,10 @@ function ProjectPage() {
                       <td className="w-16 px-2 py-2 border-r border-gray-200 dark:border-gray-600 align-top">
                         <div className="flex items-center">
                           <input
-                            type="checkbox"
-                            checked={selectedBugs.has(bug.id)}
-                            onChange={(e) => {
-                              e.stopPropagation();
-                              toggleBugSelection(bug.id, true);
-                            }}
-                            className="rounded border-gray-300 text-black dark:text-white bg-white dark:bg-gray-700 checked:bg-black dark:checked:bg-white focus:ring-black dark:focus:ring-white"
+                            type="radio"
+                            checked={selectedBugId === bug.id}
+                            onChange={() => handleRowClick(bug.id)}
+                            className="rounded-full border-gray-300 text-black dark:text-white bg-white dark:bg-gray-700 checked:bg-black dark:checked:bg-white focus:ring-black dark:focus:ring-white"
                           />
                         </div>
                       </td>
@@ -666,7 +630,7 @@ function ProjectPage() {
                         {new Date(bug.created_at).toLocaleDateString()}
                       </td>
                     </tr>
-                    {selectedBugs.has(bug.id) && (
+                    {selectedBugId === bug.id && (
                       <tr className="bg-gray-50 dark:bg-gray-700">
                         <td colSpan={4} className="px-4 py-4">
                           <div className="w-full">
