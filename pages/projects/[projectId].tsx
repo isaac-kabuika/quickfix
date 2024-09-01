@@ -267,6 +267,7 @@ function ProjectPage() {
   const [uiEvents, setUIEvents] = useState<UIEvent[]>([]);
   const [llmService, setLLMService] = useState<LLMService | null>(null);
   const [sessionEvents, setSessionEvents] = useState<UIEvent[]>([]);
+  const [allEvents, setAllEvents] = useState<UIEvent[]>([]);
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -591,18 +592,13 @@ function ProjectPage() {
 
   const handleEventFromWebContainer = useCallback((event: MessageEvent) => {
     console.log('Received message from WebContainer:', event.data);
-    if (event.data && event.data.type === 'UI_EVENT') {
-      console.log('Received UI event:', event.data.event);
-      setUIEvents(prevEvents => {
-        const newEvents = [...prevEvents, event.data.event];
-        console.log('Updated UI events:', newEvents);
-        return newEvents;
-      });
-      setSessionEvents(prevEvents => {
-        const newEvents = [...prevEvents, event.data.event];
-        console.log('Updated session events:', newEvents);
-        return newEvents;
-      });
+    if (event.data && event.data.type) {
+      const newEvent = {
+        ...event.data,
+        timestamp: new Date().toISOString()
+      };
+      console.log('Storing new event:', newEvent);
+      setAllEvents(prevEvents => [...prevEvents, newEvent]);
     }
   }, []);
 
@@ -623,11 +619,7 @@ function ProjectPage() {
     setIsFullScreen(false);
     await stopWebContainer();
     setActiveTab('events');
-    // Transfer session events to UI events
-    setUIEvents(prevEvents => [...prevEvents, ...sessionEvents]);
-    // Clear session events
-    setSessionEvents([]);
-  }, [stopWebContainer, sessionEvents]);
+  }, [stopWebContainer]);
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
   if (error) return <div className="text-center text-red-500">{error}</div>
@@ -764,6 +756,7 @@ function ProjectPage() {
                 src={webContainerStatus.url}
                 className="w-full h-full bg-white"
                 title="WebContainer App Full Screen"
+                allow="cross-origin-isolated"
               />
             </div>
           </div>
@@ -907,7 +900,7 @@ function ProjectPage() {
                                       <div className="flex space-x-2">
                                         <button
                                           onClick={stopWebContainer}
-                                          className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                                          className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-500 flex items-center"
                                         >
                                           Stop Server
                                         </button>
@@ -923,8 +916,9 @@ function ProjectPage() {
                                               <iframe
                                                 ref={iframeRef}
                                                 src={webContainerStatus.url}
-                                                className="w-full h-full"
+                                                className="w-full h-full bg-white"
                                                 title="WebContainer App"
+                                                allow="cross-origin-isolated"
                                               />
                                               <div className="absolute top-2 right-2 flex space-x-2">
                                                 <button
@@ -998,16 +992,19 @@ function ProjectPage() {
                                       <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
                                         <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">UI Events</h3>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                                          Total events: {uiEvents.length}
+                                          Total events: {allEvents.length}
                                         </p>
-                                        {uiEvents.length === 0 ? (
+                                        {allEvents.length === 0 ? (
                                           <p className="text-gray-500 dark:text-gray-400">No events recorded yet.</p>
                                         ) : (
                                           <ul className="space-y-2">
-                                            {uiEvents.map((event, index) => (
+                                            {allEvents.map((event, index) => (
                                               <li key={index} className="bg-gray-50 dark:bg-gray-700 p-2 rounded">
                                                 <p className="text-sm text-gray-800 dark:text-gray-200">
                                                   <span className="font-semibold">{event.type}</span> on {event.target}
+                                                  {event.class && <span className="ml-2">Class: {event.class}</span>}
+                                                  {event.text && <span className="ml-2">Text: {event.text}</span>}
+                                                  {event.value && <span className="ml-2">Value: {event.value}</span>}
                                                 </p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400">
                                                   {new Date(event.timestamp).toLocaleString()}
