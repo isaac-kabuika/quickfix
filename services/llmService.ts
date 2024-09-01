@@ -1,4 +1,4 @@
-import { anthropicClient } from '../lib/anthropicApiClient';
+import axios from 'axios';
 
 export enum LLMRequestType {
   EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP = 'EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP',
@@ -41,7 +41,7 @@ export const createLLMService = (): LLMService => {
     sendRequest: async (type: LLMRequestType, content: string): Promise<string> => {
       try {
         console.log(`Sending ${type} request to LLM...`);
-        const response = await anthropicClient.sendRequest(type, content);
+        const response = await boltLlmApiClient.sendRequest(type, content);
         console.log(`Received response from LLM for ${type}:`, response);
         return response;
       } catch (error) {
@@ -50,4 +50,37 @@ export const createLLMService = (): LLMService => {
       }
     }
   };
+};
+
+/** Bolt is our app's new name. */
+const boltLlmApiAxios = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+/** Bolt is our app's new name. */
+export const boltLlmApiClient = {
+  sendRequest: async (type: LLMRequestType, content: string): Promise<string> => {
+    try {
+      console.log(`Sending request to Anthropic API for ${type}...`);
+      const response = await boltLlmApiAxios.post('/llm', { type, content });
+      console.log(`Received response from Anthropic API for ${type}:`, response.data);
+      if (!response.data || !response.data.result) {
+        throw new Error('Invalid response from Anthropic API');
+      }
+      return response.data.result;
+    } catch (error) {
+      console.error('Error calling Anthropic API:', error);
+      if (axios.isAxiosError(error)) {
+        console.error('Axios error details:', {
+          response: error.response?.data,
+          status: error.response?.status,
+          headers: error.response?.headers,
+        });
+      }
+      throw error;
+    }
+  },
 };
