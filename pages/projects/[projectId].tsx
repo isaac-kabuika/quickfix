@@ -9,6 +9,7 @@ import JSZip from 'jszip'
 import { useProject } from '../../store/hooks/useProject'
 import { useDropzone } from 'react-dropzone'
 import { LightningBoltIcon } from '@heroicons/react/solid'
+import { createLLMService, LLMService } from '../../services/llmService'
 
 interface Project {
   id: string;
@@ -41,6 +42,12 @@ interface WebContainerStatus {
 interface TerminalOutput {
   type: 'command' | 'output';
   content: string;
+}
+
+interface UIEvent {
+  type: string;
+  target: string;
+  timestamp: number;
 }
 
 const LoadFilesAnimation = () => {
@@ -249,7 +256,7 @@ function ProjectPage() {
   const webContainerConsoleRef = useRef<WebContainerConsole | null>(null)
   const [uploadedZip, setUploadedZip] = useState<File | null>(null)
   const [terminalOutput, setTerminalOutput] = useState<TerminalOutput[]>([])
-  const [activeTab, setActiveTab] = useState<'console' | 'ui'>('ui')
+  const [activeTab, setActiveTab] = useState<'console' | 'ui' | 'events'>('ui')
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const consoleRef = useRef<HTMLDivElement>(null)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
@@ -257,6 +264,8 @@ function ProjectPage() {
   const [isFullScreen, setIsFullScreen] = useState(false);
   const fullScreenContainerRef = useRef<HTMLDivElement>(null);
   const [editingBugId, setEditingBugId] = useState<string | null>(null);
+  const [uiEvents, setUIEvents] = useState<UIEvent[]>([]);
+  const [llmService, setLLMService] = useState<LLMService | null>(null);
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -414,11 +423,11 @@ function ProjectPage() {
   const initWebContainer = useCallback(async (zipFile: File) => {
     resetWebContainerState();
     setWebContainerStatus(prev => ({ ...prev, status: 'starting', isLoading: true }));
-    if (!webContainerConsoleRef.current) {
+    if (!webContainerConsoleRef.current && llmService) {
       webContainerConsoleRef.current = new WebContainerConsole((status) => {
         setWebContainerStatus(prev => ({ ...prev, status }))
         setTerminalOutput(prev => [...prev, { type: 'output', content: status }])
-      })
+      }, llmService)
     }
 
     try {
@@ -463,78 +472,30 @@ function ProjectPage() {
         throw new Error('No valid files to load into WebContainer')
       }
 
-      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Mounting project files...' }])
-      await webContainerConsoleRef.current.loadFiles(files)
-      setTerminalOutput(prev => [...prev, { type: 'output', content: 'Project files mounted successfully' }])
+      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Initializing WebContainer with event tracker...' }])
+      await webContainerConsoleRef.current.initializeWithEventTracker(files)
 
-      // Add .env.local file
+      // Add .env.local file if needed
       if (project && project.env) {
         setTerminalOutput(prev => [...prev, { type: 'command', content: 'Adding .env.local file...' }])
         await webContainerConsoleRef.current.webcontainer?.fs.writeFile('.env.local', project.env)
         setTerminalOutput(prev => [...prev, { type: 'output', content: '.env.local file added successfully' }])
       }
 
-      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Installing dependencies...' }])
-      const installProcess = await webContainerConsoleRef.current.webcontainer?.spawn('npm', ['install'])
-      if (installProcess) {
-        installProcess.output.pipeTo(new WritableStream({
-          write(data) {
-            setTerminalOutput(prev => [...prev, { type: 'output', content: data.trim() }])
-          }
-        }))
-        await installProcess.exit
-      }
-      setTerminalOutput(prev => [...prev, { type: 'output', content: 'Dependencies installed successfully' }])
+      webContainerConsoleRef.current.webcontainer?.on('server-ready', (port: number, url: string) => {
+        console.log('Server is ready on:', url);
+        setWebContainerStatus(prev => ({ ...prev, url, isReady: true, isLoading: false }));
+        setTerminalOutput(prev => [...prev, { type: 'output', content: `Server is ready on: ${url}` }]);
+        setCompilationStatus('compiling');
+      });
 
-      setTerminalOutput(prev => [...prev, { type: 'command', content: 'Starting development server...' }])
-      const devProcess = await webContainerConsoleRef.current.webcontainer?.spawn('npm', ['run', 'dev'])
-      
-      if (devProcess) {
-        webContainerConsoleRef.current.webcontainer?.on('server-ready', async (port: number, url: string) => {
-          console.log('Server is ready on:', url);
-          setWebContainerStatus(prev => ({ ...prev, url, isReady: true, isLoading: false }));
-          setTerminalOutput(prev => [...prev, { type: 'output', content: `Server is ready on: ${url}` }]);
-          setCompilationStatus('compiling');
-
-          // Send a request to the server to trigger compilation
-          try {
-            const curl = await webContainerConsoleRef.current?.webcontainer?.spawn('curl', [url]);
-            curl?.output.pipeTo(new WritableStream({
-              write(data) {
-                console.log('Initial request response:', data);
-              }
-            }));
-            await curl?.exit;
-            console.log('Initial request sent to trigger compilation');
-            
-            // Set a timeout to change status to 'ready' if we don't see a compilation message
-            setTimeout(() => {
-              setCompilationStatus(prevStatus => prevStatus === 'compiling' ? 'ready' : prevStatus);
-            }, 10000); // 10 seconds timeout
-          } catch (error) {
-            console.error('Error sending initial request:', error);
-          }
-        });
-
-        devProcess.output.pipeTo(new WritableStream({
-          write(data) {
-            const trimmedData = data.trim()
-            if (trimmedData) {
-              setTerminalOutput(prev => [...prev, { type: 'output', content: trimmedData }])
-              if (trimmedData.includes('compiled successfully') || trimmedData.includes('Compiled successfully')) {
-                setCompilationStatus('ready');
-              } else if (trimmedData.includes('Compiling...') || trimmedData.includes('compiling...')) {
-                setCompilationStatus('compiling');
-              }
-              console.log('Server output:', trimmedData);
-            }
-          }
-        }))
-        setWebContainerStatus(prev => ({ ...prev, isReady: true, isLoading: false }))
-        setTerminalOutput(prev => [...prev, { type: 'output', content: 'Development server is now running' }])
-      } else {
-        throw new Error('Failed to start development server')
-      }
+      // Add a new event listener for terminal output
+      webContainerConsoleRef.current.setOutputCallback((output: string) => {
+        setTerminalOutput(prev => [...prev, { type: 'output', content: output }]);
+        if (output.includes('Ready in') || output.includes('compiled successfully')) {
+          setCompilationStatus('ready');
+        }
+      });
 
     } catch (error) {
       console.error('Error initializing WebContainer:', error)
@@ -542,7 +503,7 @@ function ProjectPage() {
       setError(`WebContainer initialization failed: ${error}`)
       setTerminalOutput(prev => [...prev, { type: 'output', content: `Error: ${error}` }])
     }
-  }, [project])
+  }, [project, llmService])
 
   const stopWebContainer = useCallback(async () => {
     if (webContainerConsoleRef.current) {
@@ -626,6 +587,23 @@ function ProjectPage() {
       setIsCreatingBug(false);
     }
   };
+
+  const handleEventFromWebContainer = useCallback((event: MessageEvent) => {
+    if (event.data && event.data.type === 'UI_EVENT') {
+      setUIEvents(prevEvents => [...prevEvents, event.data.event]);
+    }
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener('message', handleEventFromWebContainer);
+    return () => {
+      window.removeEventListener('message', handleEventFromWebContainer);
+    };
+  }, [handleEventFromWebContainer]);
+
+  useEffect(() => {
+    setLLMService(createLLMService());
+  }, []);
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
   if (error) return <div className="text-center text-red-500">{error}</div>
@@ -885,14 +863,26 @@ function ProjectPage() {
                                       >
                                         Logs
                                       </button>
+                                      <button
+                                        onClick={() => setActiveTab('events')}
+                                        className={`px-3 py-1 rounded-md text-sm font-medium ${
+                                          activeTab === 'events'
+                                            ? 'bg-black text-white'
+                                            : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                        }`}
+                                      >
+                                        Events
+                                      </button>
                                     </div>
                                     {webContainerStatus.isReady && (
-                                      <button
-                                        onClick={stopWebContainer}
-                                        className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
-                                      >
-                                        Stop Server
-                                      </button>
+                                      <div className="flex space-x-2">
+                                        <button
+                                          onClick={stopWebContainer}
+                                          className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                                        >
+                                          Stop Server
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                   <div className="p-4">
@@ -963,7 +953,7 @@ function ProjectPage() {
                                           </div>
                                         )}
                                       </div>
-                                    ) : (
+                                    ) : activeTab === 'console' ? (
                                       <div 
                                         ref={consoleRef}
                                         className="bg-black text-green-400 p-4 rounded h-64 overflow-y-auto font-mono text-sm"
@@ -974,6 +964,26 @@ function ProjectPage() {
                                             {line.content}
                                           </div>
                                         ))}
+                                      </div>
+                                    ) : (
+                                      <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
+                                        <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">UI Events</h3>
+                                        {uiEvents.length === 0 ? (
+                                          <p className="text-gray-500 dark:text-gray-400">No events recorded yet.</p>
+                                        ) : (
+                                          <ul className="space-y-2">
+                                            {uiEvents.map((event, index) => (
+                                              <li key={index} className="bg-gray-50 dark:bg-gray-700 p-2 rounded">
+                                                <p className="text-sm text-gray-800 dark:text-gray-200">
+                                                  <span className="font-semibold">{event.type}</span> on {event.target}
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                  {new Date(event.timestamp).toLocaleString()}
+                                                </p>
+                                              </li>
+                                            ))}
+                                          </ul>
+                                        )}
                                       </div>
                                     )}
                                   </div>

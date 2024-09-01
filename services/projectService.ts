@@ -16,54 +16,20 @@ export const getProjects = async (userId: string): Promise<Project[]> => {
   return data
 }
 
-export const createProject = async (projectData: ProjectInsert) => {
-  console.log('Creating project:', projectData)
-
-  const { data: session } = await supabase.auth.getSession()
-  console.log('Current session:', session)
-
-  if (!session || !session.session) {
-    throw new Error('No active session')
-  }
-
-  const { user, provider_token } = session.session
-
-  if (!user) {
-    throw new Error('User not found')
-  }
-
-  console.log('User:', user)
-  console.log('Provider token:', provider_token)
-
-  if (!provider_token) {
-    throw new Error('GitHub access token not found')
-  }
-
-  // You can use the `provider_token` as the GitHub access token
-
-  // Prepare the project data, ensuring we don't include an ID
-  const newProjectData: ProjectInsert = {
-    name: projectData.name,
-    github_repo: projectData.github_repo,
-    owner_id: user.id,
-    // Add any other fields that are part of your project schema
-  }
-
-  // Then create the project in your database
+export const createProject = async (projectData: Omit<Project, 'id' | 'created_at'>) => {
   const { data, error } = await supabase
     .from('projects')
-    .insert([newProjectData])
-    .select()
-    .single() // This ensures we only get one result
+    .insert({
+      name: projectData.name,
+      github_repo: projectData.github_repo,
+      env: projectData.env,
+      owner_id: projectData.owner_id,
+    })
+    .single();
 
-  if (error) {
-    console.error('Error creating project:', error)
-    throw error
-  }
-
-  console.log('Project created successfully:', data)
-  return data
-}
+  if (error) throw error;
+  return data;
+};
 
 export const getProject = async (projectId: string): Promise<Project> => {
   const { data, error } = await supabase
@@ -134,14 +100,17 @@ export const deleteProject = async (projectId: string) => {
   }
 }
 
-export const updateProject = async (projectId: string, updatedData: ProjectUpdate): Promise<Project> => {
+export const updateProject = async (id: string, projectData: Partial<Project>): Promise<Project> => {
   const { data, error } = await supabase
     .from('projects')
-    .update(updatedData)
-    .eq('id', projectId)
-    .select()
-    .single()
+    .update({
+      name: projectData.name,
+      github_repo: projectData.github_repo,
+      env: projectData.env,
+    })
+    .eq('id', id)
+    .single();
 
-  if (error) throw error
-  return data
-}
+  if (error) throw error;
+  return data;
+};
