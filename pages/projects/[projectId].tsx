@@ -266,6 +266,7 @@ function ProjectPage() {
   const [editingBugId, setEditingBugId] = useState<string | null>(null);
   const [uiEvents, setUIEvents] = useState<UIEvent[]>([]);
   const [llmService, setLLMService] = useState<LLMService | null>(null);
+  const [sessionEvents, setSessionEvents] = useState<UIEvent[]>([]);
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -589,21 +590,44 @@ function ProjectPage() {
   };
 
   const handleEventFromWebContainer = useCallback((event: MessageEvent) => {
+    console.log('Received message from WebContainer:', event.data);
     if (event.data && event.data.type === 'UI_EVENT') {
-      setUIEvents(prevEvents => [...prevEvents, event.data.event]);
+      console.log('Received UI event:', event.data.event);
+      setUIEvents(prevEvents => {
+        const newEvents = [...prevEvents, event.data.event];
+        console.log('Updated UI events:', newEvents);
+        return newEvents;
+      });
+      setSessionEvents(prevEvents => {
+        const newEvents = [...prevEvents, event.data.event];
+        console.log('Updated session events:', newEvents);
+        return newEvents;
+      });
     }
   }, []);
 
   useEffect(() => {
     window.addEventListener('message', handleEventFromWebContainer);
+    console.log('Added event listener for WebContainer messages');
     return () => {
       window.removeEventListener('message', handleEventFromWebContainer);
+      console.log('Removed event listener for WebContainer messages');
     };
   }, [handleEventFromWebContainer]);
 
   useEffect(() => {
     setLLMService(createLLMService());
   }, []);
+
+  const handleExitFullScreenAndShowEvents = useCallback(async () => {
+    setIsFullScreen(false);
+    await stopWebContainer();
+    setActiveTab('events');
+    // Transfer session events to UI events
+    setUIEvents(prevEvents => [...prevEvents, ...sessionEvents]);
+    // Clear session events
+    setSessionEvents([]);
+  }, [stopWebContainer, sessionEvents]);
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
   if (error) return <div className="text-center text-red-500">{error}</div>
@@ -717,17 +741,22 @@ function ProjectPage() {
 
       <div className="flex-grow overflow-auto relative">
         {isFullScreen && webContainerStatus.url && (
-          <div className="absolute inset-0 z-50 flex flex-col border border-green-500">
+          <div 
+            ref={fullScreenContainerRef}
+            className="absolute inset-0 z-50 flex flex-col border border-green-500"
+            onKeyDown={handleFullScreenExit}
+            tabIndex={0}
+          >
             <div className="flex justify-between items-center p-2 bg-gray-100 dark:bg-gray-700 border-b border-gray-200 dark:border-gray-600">
               <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">WebContainer App</h2>
               <button
-                onClick={() => setIsFullScreen(false)}
+                onClick={handleExitFullScreenAndShowEvents}
                 className="bg-white dark:bg-gray-600 text-gray-800 dark:text-gray-200 px-2 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-500 transition-colors border border-gray-300 dark:border-gray-500 flex items-center"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
                 </svg>
-                Exit Full Screen
+                End Bug Session
               </button>
             </div>
             <div className="flex-grow">
@@ -968,6 +997,9 @@ function ProjectPage() {
                                     ) : (
                                       <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
                                         <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">UI Events</h3>
+                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                                          Total events: {uiEvents.length}
+                                        </p>
                                         {uiEvents.length === 0 ? (
                                           <p className="text-gray-500 dark:text-gray-400">No events recorded yet.</p>
                                         ) : (
