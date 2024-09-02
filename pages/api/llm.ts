@@ -123,6 +123,7 @@ import { useAuth } from '../store/hooks/useAuth'
 import { ThemeProvider } from '../contexts/ThemeContext'
 import { useEffect, useState } from 'react'
 import { AuthProvider } from '../contexts/AuthContext'
+import { useRouter } from 'next/router'
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -130,35 +131,49 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true)
+  }, [])
 
-    // Track UI events
-    const handleClick = (event: MouseEvent) => {
-      const target = event.target as HTMLElement
-      const eventData = {
-        type: 'click',
-        target: target.tagName.toLowerCase(),
-        class: target.className,
-        text: target.innerText.trim(),
-      }
-      window.parent.postMessage(eventData, '*')
+  const router = useRouter()
+
+  // Attach event listener for UI events
+  const handleUIEvent = (event: Event) => {
+    const target = event.target as HTMLElement
+    const eventDetails = {
+      type: event.type,
+      target: {
+        tagName: target.tagName.toLowerCase(),
+        id: target.id,
+        className: target.className,
+      },
     }
+    const currentPath = router.asPath
+    const pageHTML = document.documentElement.innerHTML
 
-    const handleInput = (event: Event) => {
-      const target = event.target as HTMLInputElement
-      const eventData = {
-        type: 'input',
-        target: target.tagName.toLowerCase(),
-        value: target.value,
-      }
-      window.parent.postMessage(eventData, '*')
-    }
+    // Post the event details to the parent window
+    window.parent.postMessage(
+      {
+        type: 'UI_EVENT',
+        payload: {
+          eventDetails,
+          currentPath,
+          pageHTML,
+        },
+      },
+      '*'
+    )
+  }
 
-    document.addEventListener('click', handleClick)
-    document.addEventListener('input', handleInput)
+  useEffect(() => {
+    // Attach event listener to the document
+    document.addEventListener('click', handleUIEvent)
+    document.addEventListener('input', handleUIEvent)
+    document.addEventListener('change', handleUIEvent)
 
+    // Clean up event listeners on component unmount
     return () => {
-      document.removeEventListener('click', handleClick)
-      document.removeEventListener('input', handleInput)
+      document.removeEventListener('click', handleUIEvent)
+      document.removeEventListener('input', handleUIEvent)
+      document.removeEventListener('change', handleUIEvent)
     }
   }, [])
 

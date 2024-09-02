@@ -10,6 +10,7 @@ import { useProject } from '../../store/hooks/useProject'
 import { useDropzone } from 'react-dropzone'
 import { LightningBoltIcon } from '@heroicons/react/solid'
 import { createLLMService, LLMService } from '../../services/llmService'
+import { diffLines } from 'diff';
 
 interface Project {
   id: string;
@@ -46,8 +47,14 @@ interface TerminalOutput {
 
 interface UIEvent {
   type: string;
-  target: string;
+  target: {
+    tagName: string;
+    id: string;
+    className: string;
+  };
+  currentPath: string;
   timestamp: number;
+  htmlDiff?: string;
 }
 
 const LoadFilesAnimation = () => {
@@ -232,6 +239,14 @@ const BugDescriptionEditDropdown: React.FC<BugDescriptionEditDropdownProps> = ({
   );
 };
 
+function computeHtmlDiff(oldHtml: string, newHtml: string): string {
+  const diff = diffLines(oldHtml, newHtml);
+  return diff
+    .filter(part => part.added || part.removed)
+    .map(part => (part.added ? `+ ${part.value}` : `- ${part.value}`))
+    .join('\n');
+}
+
 function ProjectPage() {
   const router = useRouter()
   const { projectId } = router.query
@@ -268,6 +283,7 @@ function ProjectPage() {
   const [llmService, setLLMService] = useState<LLMService | null>(null);
   const [sessionEvents, setSessionEvents] = useState<UIEvent[]>([]);
   const [allEvents, setAllEvents] = useState<UIEvent[]>([]);
+  const [fullPageHtml, setFullPageHtml] = useState<string>('');
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -591,16 +607,33 @@ function ProjectPage() {
   };
 
   const handleEventFromWebContainer = useCallback((event: MessageEvent) => {
-    console.log('Received message from WebContainer:', event.data);
-    if (event.data && event.data.type) {
-      const newEvent = {
-        ...event.data,
-        timestamp: new Date().toISOString()
+    if (event.data && event.data.type === 'UI_EVENT') {
+      const { eventDetails, currentPath, pageHTML } = event.data.payload;
+      let htmlDiff: string | undefined;
+
+      if (pageHTML) {
+        if (!fullPageHtml) {
+          // First event with pageHTML, store the full HTML
+          setFullPageHtml(pageHTML);
+          htmlDiff = 'Initial HTML';
+        } else {
+          // Compute diff from the previous full HTML
+          htmlDiff = computeHtmlDiff(fullPageHtml, pageHTML);
+          // Update the full HTML
+          setFullPageHtml(pageHTML);
+        }
+      }
+
+      const newEvent: UIEvent = {
+        type: eventDetails.type,
+        target: eventDetails.target,
+        currentPath,
+        timestamp: Date.now(),
+        htmlDiff
       };
-      console.log('Storing new event:', newEvent);
       setAllEvents(prevEvents => [...prevEvents, newEvent]);
     }
-  }, []);
+  }, [fullPageHtml]);
 
   useEffect(() => {
     window.addEventListener('message', handleEventFromWebContainer);
@@ -997,18 +1030,28 @@ function ProjectPage() {
                                         {allEvents.length === 0 ? (
                                           <p className="text-gray-500 dark:text-gray-400">No events recorded yet.</p>
                                         ) : (
-                                          <ul className="space-y-2">
+                                          <ul className="space-y-4">
                                             {allEvents.map((event, index) => (
-                                              <li key={index} className="bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                                                <p className="text-sm text-gray-800 dark:text-gray-200">
-                                                  <span className="font-semibold">{event.type}</span> on {event.target}
-                                                  {event.class && <span className="ml-2">Class: {event.class}</span>}
-                                                  {event.text && <span className="ml-2">Text: {event.text}</span>}
-                                                  {event.value && <span className="ml-2">Value: {event.value}</span>}
+                                              <li key={index} className="bg-gray-50 dark:bg-gray-700 p-4 rounded">
+                                                <p className="text-sm text-gray-800 dark:text-gray-200 mb-1">
+                                                  <span className="font-semibold">{event.type}</span> on {event.target.tagName}
+                                                  {event.target.id && <span className="ml-2">ID: {event.target.id}</span>}
+                                                  {event.target.className && <span className="ml-2">Class: {event.target.className}</span>}
                                                 </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
+                                                  Path: {event.currentPath}
+                                                </p>
+                                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                                                   {new Date(event.timestamp).toLocaleString()}
                                                 </p>
+                                                {event.htmlDiff && (
+                                                  <div className="mt-2">
+                                                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">HTML Diff:</p>
+                                                    <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-x-auto">
+                                                      {event.htmlDiff}
+                                                    </pre>
+                                                  </div>
+                                                )}
                                               </li>
                                             ))}
                                           </ul>
