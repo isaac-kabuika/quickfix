@@ -47,14 +47,14 @@ interface TerminalOutput {
 
 interface UIEvent {
   type: string;
-  target: {
+  target?: {
     tagName: string;
     id: string;
     className: string;
   };
   currentPath: string;
   timestamp: number;
-  htmlDiff?: string;
+  details?: string; // For navigation events and error logs
 }
 
 const LoadFilesAnimation = () => {
@@ -283,7 +283,6 @@ function ProjectPage() {
   const [llmService, setLLMService] = useState<LLMService | null>(null);
   const [sessionEvents, setSessionEvents] = useState<UIEvent[]>([]);
   const [allEvents, setAllEvents] = useState<UIEvent[]>([]);
-  const [fullPageHtml, setFullPageHtml] = useState<string>('');
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -608,32 +607,17 @@ function ProjectPage() {
 
   const handleEventFromWebContainer = useCallback((event: MessageEvent) => {
     if (event.data && event.data.type === 'UI_EVENT') {
-      const { eventDetails, currentPath, pageHTML } = event.data.payload;
-      let htmlDiff: string | undefined;
-
-      if (pageHTML) {
-        if (!fullPageHtml) {
-          // First event with pageHTML, store the full HTML
-          setFullPageHtml(pageHTML);
-          htmlDiff = 'Initial HTML';
-        } else {
-          // Compute diff from the previous full HTML
-          htmlDiff = computeHtmlDiff(fullPageHtml, pageHTML);
-          // Update the full HTML
-          setFullPageHtml(pageHTML);
-        }
-      }
-
+      const { eventDetails, currentPath } = event.data.payload;
       const newEvent: UIEvent = {
         type: eventDetails.type,
         target: eventDetails.target,
         currentPath,
         timestamp: Date.now(),
-        htmlDiff
+        details: eventDetails.details // Add this line to include event details
       };
       setAllEvents(prevEvents => [...prevEvents, newEvent]);
     }
-  }, [fullPageHtml]);
+  }, []);
 
   useEffect(() => {
     window.addEventListener('message', handleEventFromWebContainer);
@@ -1034,9 +1018,9 @@ function ProjectPage() {
                                             {allEvents.map((event, index) => (
                                               <li key={index} className="bg-gray-50 dark:bg-gray-700 p-4 rounded">
                                                 <p className="text-sm text-gray-800 dark:text-gray-200 mb-1">
-                                                  <span className="font-semibold">{event.type}</span> on {event.target.tagName}
-                                                  {event.target.id && <span className="ml-2">ID: {event.target.id}</span>}
-                                                  {event.target.className && <span className="ml-2">Class: {event.target.className}</span>}
+                                                  <span className="font-semibold">{event.type}</span> on {event.target?.tagName}
+                                                  {event.target?.id && <span className="ml-2">ID: {event.target.id}</span>}
+                                                  {event.target?.className && <span className="ml-2">Class: {event.target.className}</span>}
                                                 </p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                                                   Path: {event.currentPath}
@@ -1044,13 +1028,10 @@ function ProjectPage() {
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
                                                   {new Date(event.timestamp).toLocaleString()}
                                                 </p>
-                                                {event.htmlDiff && (
-                                                  <div className="mt-2">
-                                                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">HTML Diff:</p>
-                                                    <pre className="text-xs bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-x-auto">
-                                                      {event.htmlDiff}
-                                                    </pre>
-                                                  </div>
+                                                {event.details && (
+                                                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                                                    Details: {event.details}
+                                                  </p>
                                                 )}
                                               </li>
                                             ))}

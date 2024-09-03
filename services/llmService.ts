@@ -8,54 +8,97 @@ export enum LLMRequestType {
 export function generatePrompt(type: LLMRequestType, content: string): string {
   switch (type) {
     case LLMRequestType.EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP:
-      return `You will be modifying a next.js app to track app UI events with details that include the element with selectors, the event details, the current path, and a copy of the rendered html page as text. Note that your code should be safe to avoid errors. The app runs in an iframe and is responsible for posting the events back to the parent app using \`window.parent.postMessage\`. You can only update the provided entrypoint file's codes. 
+      return `You will be modifying a next.js app to track app UI events, navigation events, and error logs with details that include the element with selectors, the event details, the current path, and other relevant information. Note that your code should be safe to avoid errors and should only run on the client-side. The app runs in an iframe and is responsible for posting the events back to the parent app using \`window.parent.postMessage\`. You can only update the provided entrypoint file's codes. 
       Here is the code to retrofit and inject:
       <code-to-retrofit>
-      // Attach event listener for UI events
-    const handleUIEvent = (event: Event) => {
-      const target = event.target as HTMLElement
-      const eventDetails = {
-        type: event.type,
-        target: {
-          tagName: target.tagName.toLowerCase(),
-          id: target.id,
-          className: target.className,
-        },
+      // Wrap all DOM-related code in a check for the window object
+      if (typeof window !== 'undefined') {
+        // Attach event listener for UI events
+        const handleUIEvent = (event) => {
+          const target = event.target;
+          const eventDetails = {
+            type: event.type,
+            target: {
+              tagName: target.tagName.toLowerCase(),
+              id: target.id,
+              className: target.className,
+            },
+          };
+          const currentPath = router.asPath;
+
+          window.parent.postMessage(
+            {
+              type: 'UI_EVENT',
+              payload: {
+                eventDetails,
+                currentPath,
+              },
+            },
+            '*'
+          );
+        };
+
+        document.addEventListener('click', handleUIEvent);
+        document.addEventListener('input', handleUIEvent);
+        document.addEventListener('change', handleUIEvent);
+
+        // Navigation event tracking
+        const handleRouteChange = (url) => {
+          window.parent.postMessage(
+            {
+              type: 'UI_EVENT',
+              payload: {
+                eventDetails: {
+                  type: 'navigation',
+                  details: \`Navigated to: \${url}\`,
+                },
+                currentPath: url,
+              },
+            },
+            '*'
+          );
+        };
+
+        router.events.on('routeChangeComplete', handleRouteChange);
+
+        // Error logging
+        const originalConsoleError = console.error;
+        console.error = (...args) => {
+          originalConsoleError.apply(console, args);
+          const errorMessage = args.map(arg => 
+            typeof arg === 'string' ? arg : JSON.stringify(arg)
+          ).join(' ');
+          
+          window.parent.postMessage(
+            {
+              type: 'UI_EVENT',
+              payload: {
+                eventDetails: {
+                  type: 'error',
+                  details: \`Error: \${errorMessage}\`,
+                },
+                currentPath: router.asPath,
+              },
+            },
+            '*'
+          );
+        };
+
+        // Clean up
+        return () => {
+          document.removeEventListener('click', handleUIEvent);
+          document.removeEventListener('input', handleUIEvent);
+          document.removeEventListener('change', handleUIEvent);
+          router.events.off('routeChangeComplete', handleRouteChange);
+          console.error = originalConsoleError;
+        };
       }
-      const currentPath = router.asPath
-      const pageHTML = document.documentElement.innerHTML
-
-      // Post the event details to the parent window
-      window.parent.postMessage(
-        {
-          type: 'UI_EVENT',
-          payload: {
-            eventDetails,
-            currentPath,
-            pageHTML,
-          },
-        },
-        '*'
-      )
-    }
-
-    // Attach event listener to the document
-    document.addEventListener('click', handleUIEvent)
-    document.addEventListener('input', handleUIEvent)
-    document.addEventListener('change', handleUIEvent)
-
-    // Clean up event listeners on component unmount
-    return () => {
-      document.removeEventListener('click', handleUIEvent)
-      document.removeEventListener('input', handleUIEvent)
-      document.removeEventListener('change', handleUIEvent)
-    }
       </code-to-retrofit>
       Here's the current content:
 
 ${content}
 
-Please provide the updated entrypoint file's content that includes the necessary modifications for event tracking. Your response should follow this exact format:
+Please provide the updated entrypoint file's content that includes the necessary modifications for event tracking, navigation events, and error logging. Your response should follow this exact format:
 
 <FILE_PATH>path/to/entrypoint/file.js</FILE_PATH>
 <UPDATED_CONTENT>
