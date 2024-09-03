@@ -121,9 +121,9 @@ import Navbar from '../components/navigation/Navbar'
 import Sidebar from '../components/navigation/Sidebar'
 import { useAuth } from '../store/hooks/useAuth'
 import { ThemeProvider } from '../contexts/ThemeContext'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { AuthProvider } from '../contexts/AuthContext'
-import { useRouter } from 'next/router'
+import { useRouter } from 'next/router';
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -131,50 +131,6 @@ function Layout({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     setMounted(true)
-  }, [])
-
-  const router = useRouter()
-
-  // Attach event listener for UI events
-  const handleUIEvent = (event: Event) => {
-    const target = event.target as HTMLElement
-    const eventDetails = {
-      type: event.type,
-      target: {
-        tagName: target.tagName.toLowerCase(),
-        id: target.id,
-        className: target.className,
-      },
-    }
-    const currentPath = router.asPath
-    const pageHTML = document.documentElement.innerHTML
-
-    // Post the event details to the parent window
-    window.parent.postMessage(
-      {
-        type: 'UI_EVENT',
-        payload: {
-          eventDetails,
-          currentPath,
-          pageHTML,
-        },
-      },
-      '*'
-    )
-  }
-
-  useEffect(() => {
-    // Attach event listener to the document
-    document.addEventListener('click', handleUIEvent)
-    document.addEventListener('input', handleUIEvent)
-    document.addEventListener('change', handleUIEvent)
-
-    // Clean up event listeners on component unmount
-    return () => {
-      document.removeEventListener('click', handleUIEvent)
-      document.removeEventListener('input', handleUIEvent)
-      document.removeEventListener('change', handleUIEvent)
-    }
   }, [])
 
   // Render a loading state or nothing on the server
@@ -199,6 +155,71 @@ function Layout({ children }: { children: React.ReactNode }) {
 }
 
 function MyApp({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+
+  const trackEvent = useCallback((eventType, details) => {
+    if (typeof window !== 'undefined') {
+      window.parent.postMessage(
+        {
+          type: 'UI_EVENT',
+          payload: {
+            eventDetails: {
+              type: eventType,
+              ...details,
+            },
+            currentPath: router.asPath,
+          },
+        },
+        '*'
+      );
+    }
+  }, [router.asPath]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleUIEvent = (event) => {
+      const target = event.target;
+      trackEvent(event.type, {
+        target: {
+          tagName: target.tagName.toLowerCase(),
+          id: target.id,
+          className: target.className,
+        },
+      });
+    };
+
+    const handleRouteChange = (url) => {
+      trackEvent('navigation', { details: 'Navigated to: ' + url });
+    };
+
+    const handleError = (...args) => {
+      const errorMessage = args.map(arg => 
+        typeof arg === 'string' ? arg : JSON.stringify(arg)
+      ).join(' ');
+      trackEvent('error', { details: 'Error: ' + errorMessage });
+    };
+
+    document.addEventListener('click', handleUIEvent);
+    document.addEventListener('input', handleUIEvent);
+    document.addEventListener('change', handleUIEvent);
+    router.events.on('routeChangeComplete', handleRouteChange);
+
+    const originalConsoleError = console.error;
+    console.error = (...args) => {
+      originalConsoleError.apply(console, args);
+      handleError(...args);
+    };
+
+    return () => {
+      document.removeEventListener('click', handleUIEvent);
+      document.removeEventListener('input', handleUIEvent);
+      document.removeEventListener('change', handleUIEvent);
+      router.events.off('routeChangeComplete', handleRouteChange);
+      console.error = originalConsoleError;
+    };
+  }, [trackEvent, router.events]);
+
   return (
     <ThemeProvider>
       <AuthProvider>

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useRouter } from 'next/router';
 
 export enum LLMRequestType {
   EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP = 'EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP',
@@ -8,97 +9,95 @@ export enum LLMRequestType {
 export function generatePrompt(type: LLMRequestType, content: string): string {
   switch (type) {
     case LLMRequestType.EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP:
-      return `You will be modifying a next.js app to track app UI events, navigation events, and error logs with details that include the element with selectors, the event details, the current path, and other relevant information. Note that your code should be safe to avoid errors and should only run on the client-side. The app runs in an iframe and is responsible for posting the events back to the parent app using \`window.parent.postMessage\`. You can only update the provided entrypoint file's codes. 
-      Here is the code to retrofit and inject:
-      <code-to-retrofit>
-      // Wrap all DOM-related code in a check for the window object
-      if (typeof window !== 'undefined') {
-        // Attach event listener for UI events
-        const handleUIEvent = (event) => {
-          const target = event.target;
-          const eventDetails = {
-            type: event.type,
-            target: {
-              tagName: target.tagName.toLowerCase(),
-              id: target.id,
-              className: target.className,
-            },
-          };
-          const currentPath = router.asPath;
+      return `You will be modifying a Next.js app to track app UI events, navigation events, and error logs. Your task is to inject event tracking code into the provided entry point file (likely _app.js or similar) without breaking the existing React component structure. 
 
-          window.parent.postMessage(
-            {
-              type: 'UI_EVENT',
-              payload: {
-                eventDetails,
-                currentPath,
-              },
-            },
-            '*'
-          );
-        };
+Key requirements:
+1. Preserve the existing React component structure.
+2. Only add event tracking logic, don't modify or remove existing code unless absolutely necessary.
+3. Ensure all added code is within the React component or custom hooks.
+4. Use React hooks (useState, useEffect, useCallback) for managing state and side effects.
+5. The event tracking code should only run on the client-side.
+6. Use window.parent.postMessage to send events to the parent app.
+7. Import and use the useRouter hook from Next.js to access the router object.
 
-        document.addEventListener('click', handleUIEvent);
-        document.addEventListener('input', handleUIEvent);
-        document.addEventListener('change', handleUIEvent);
+Here is the code to inject for event tracking:
 
-        // Navigation event tracking
-        const handleRouteChange = (url) => {
-          window.parent.postMessage(
-            {
-              type: 'UI_EVENT',
-              payload: {
-                eventDetails: {
-                  type: 'navigation',
-                  details: \`Navigated to: \${url}\`,
-                },
-                currentPath: url,
-              },
-            },
-            '*'
-          );
-        };
+\`\`\`javascript
+import { useRouter } from 'next/router';
 
-        router.events.on('routeChangeComplete', handleRouteChange);
+// Inside your component or custom hook:
+const router = useRouter();
 
-        // Error logging
-        const originalConsoleError = console.error;
-        console.error = (...args) => {
-          originalConsoleError.apply(console, args);
-          const errorMessage = args.map(arg => 
-            typeof arg === 'string' ? arg : JSON.stringify(arg)
-          ).join(' ');
-          
-          window.parent.postMessage(
-            {
-              type: 'UI_EVENT',
-              payload: {
-                eventDetails: {
-                  type: 'error',
-                  details: \`Error: \${errorMessage}\`,
-                },
-                currentPath: router.asPath,
-              },
-            },
-            '*'
-          );
-        };
+// Event tracking logic
+const trackEvent = useCallback((eventType, details) => {
+  if (typeof window !== 'undefined') {
+    window.parent.postMessage(
+      {
+        type: 'UI_EVENT',
+        payload: {
+          eventDetails: {
+            type: eventType,
+            ...details,
+          },
+          currentPath: router.asPath,
+        },
+      },
+      '*'
+    );
+  }
+}, [router.asPath]);
 
-        // Clean up
-        return () => {
-          document.removeEventListener('click', handleUIEvent);
-          document.removeEventListener('input', handleUIEvent);
-          document.removeEventListener('change', handleUIEvent);
-          router.events.off('routeChangeComplete', handleRouteChange);
-          console.error = originalConsoleError;
-        };
-      }
-      </code-to-retrofit>
-      Here's the current content:
+useEffect(() => {
+  if (typeof window === 'undefined') return;
+
+  const handleUIEvent = (event) => {
+    const target = event.target;
+    trackEvent(event.type, {
+      target: {
+        tagName: target.tagName.toLowerCase(),
+        id: target.id,
+        className: target.className,
+      },
+    });
+  };
+
+  const handleRouteChange = (url) => {
+    trackEvent('navigation', { details: 'Navigated to: ' + url });
+  };
+
+  const handleError = (...args) => {
+    const errorMessage = args.map(arg => 
+      typeof arg === 'string' ? arg : JSON.stringify(arg)
+    ).join(' ');
+    trackEvent('error', { details: 'Error: ' + errorMessage });
+  };
+
+  document.addEventListener('click', handleUIEvent);
+  document.addEventListener('input', handleUIEvent);
+  document.addEventListener('change', handleUIEvent);
+  router.events.on('routeChangeComplete', handleRouteChange);
+
+  const originalConsoleError = console.error;
+  console.error = (...args) => {
+    originalConsoleError.apply(console, args);
+    handleError(...args);
+  };
+
+  return () => {
+    document.removeEventListener('click', handleUIEvent);
+    document.removeEventListener('input', handleUIEvent);
+    document.removeEventListener('change', handleUIEvent);
+    router.events.off('routeChangeComplete', handleRouteChange);
+    console.error = originalConsoleError;
+  };
+}, [trackEvent, router.events]);
+\`\`\`
+
+Here's the current content of the entry point file:
 
 ${content}
 
-Please provide the updated entrypoint file's content that includes the necessary modifications for event tracking, navigation events, and error logging. Your response should follow this exact format:
+Please provide the updated entry point file's content that includes the necessary modifications for event tracking, navigation events, and error logging. Ensure that the existing React component structure is preserved and that the added code doesn't break the component's rendering. Make sure to import and use the useRouter hook correctly. Your response should follow this exact format:
 
 <FILE_PATH>path/to/entrypoint/file.js</FILE_PATH>
 <UPDATED_CONTENT>
