@@ -194,10 +194,7 @@ function MyApp({ Component, pageProps }: AppProps) {
     };
 
     const handleError = (...args) => {
-      const errorMessage = args.map(arg => 
-        typeof arg === 'string' ? arg : JSON.stringify(arg)
-      ).join(' ');
-      trackEvent('error', { details: 'Error: ' + errorMessage });
+      trackEvent('error', { details: '' + args[0] });
     };
 
     document.addEventListener('click', handleUIEvent);

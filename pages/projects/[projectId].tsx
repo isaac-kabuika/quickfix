@@ -11,6 +11,7 @@ import { useDropzone } from 'react-dropzone'
 import { LightningBoltIcon } from '@heroicons/react/solid'
 import { createLLMService, LLMService } from '../../services/llmService'
 import { diffLines } from 'diff';
+import { isEqual } from 'lodash';
 
 interface Project {
   id: string;
@@ -54,7 +55,7 @@ interface UIEvent {
   };
   currentPath: string;
   timestamp: number;
-  details?: string; // For navigation events and error logs
+  details?: string;
 }
 
 const LoadFilesAnimation = () => {
@@ -282,7 +283,7 @@ function ProjectPage() {
   const [uiEvents, setUIEvents] = useState<UIEvent[]>([]);
   const [llmService, setLLMService] = useState<LLMService | null>(null);
   const [sessionEvents, setSessionEvents] = useState<UIEvent[]>([]);
-  const [allEvents, setAllEvents] = useState<UIEvent[]>([]);
+  const [allEvents, setAllEvents] = useState<Set<UIEvent>>(new Set());
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -608,14 +609,32 @@ function ProjectPage() {
   const handleEventFromWebContainer = useCallback((event: MessageEvent) => {
     if (event.data && event.data.type === 'UI_EVENT') {
       const { eventDetails, currentPath } = event.data.payload;
+      console.log('Received event from WebContainer:', event.data); // Log the entire event data
+
       const newEvent: UIEvent = {
         type: eventDetails.type,
         target: eventDetails.target,
         currentPath,
         timestamp: Date.now(),
-        details: eventDetails.details // Add this line to include event details
+        details: JSON.stringify(eventDetails) // Stringify all event details
       };
-      setAllEvents(prevEvents => [...prevEvents, newEvent]);
+
+      console.log('Processed event:', newEvent); // Log the processed event
+
+      if (eventDetails.type === 'error') {
+        console.log('Error event details:', eventDetails.details); // Log error details specifically
+      }
+
+      setAllEvents(prevEvents => {
+        const newSet = new Set(prevEvents);
+        if (!Array.from(newSet).some(e => isEqual(e, newEvent))) {
+          newSet.add(newEvent);
+          console.log('Added new event to set. Total events:', newSet.size); // Log when a new event is added
+        } else {
+          console.log('Duplicate event not added'); // Log when a duplicate is found
+        }
+        return newSet;
+      });
     }
   }, []);
 
@@ -1009,18 +1028,22 @@ function ProjectPage() {
                                       <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
                                         <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">UI Events</h3>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                                          Total events: {allEvents.length}
+                                          Total events: {allEvents.size}
                                         </p>
-                                        {allEvents.length === 0 ? (
+                                        {allEvents.size === 0 ? (
                                           <p className="text-gray-500 dark:text-gray-400">No events recorded yet.</p>
                                         ) : (
                                           <ul className="space-y-4">
-                                            {allEvents.map((event, index) => (
+                                            {Array.from(allEvents).map((event, index) => (
                                               <li key={index} className="bg-gray-50 dark:bg-gray-700 p-4 rounded">
                                                 <p className="text-sm text-gray-800 dark:text-gray-200 mb-1">
-                                                  <span className="font-semibold">{event.type}</span> on {event.target?.tagName}
-                                                  {event.target?.id && <span className="ml-2">ID: {event.target.id}</span>}
-                                                  {event.target?.className && <span className="ml-2">Class: {event.target.className}</span>}
+                                                  <span className="font-semibold">{event.type}</span>
+                                                  {event.target && (
+                                                    <span> on {event.target.tagName}
+                                                      {event.target.id && <span className="ml-2">ID: {event.target.id}</span>}
+                                                      {event.target.className && <span className="ml-2">Class: {event.target.className}</span>}
+                                                    </span>
+                                                  )}
                                                 </p>
                                                 <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
                                                   Path: {event.currentPath}
@@ -1029,9 +1052,9 @@ function ProjectPage() {
                                                   {new Date(event.timestamp).toLocaleString()}
                                                 </p>
                                                 {event.details && (
-                                                  <p className="text-xs text-gray-500 dark:text-gray-400">
-                                                    Details: {event.details}
-                                                  </p>
+                                                  <pre className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap break-words">
+                                                    {event.details}
+                                                  </pre>
                                                 )}
                                               </li>
                                             ))}
