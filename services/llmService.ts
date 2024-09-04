@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 export enum LLMRequestType {
   EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP = 'EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP',
   FIND_ENTRYPOINT_FILE = 'FIND_ENTRYPOINT_FILE',
+  ANALYZE_BUG_WITH_CODE_AND_EVENTS = 'ANALYZE_BUG_WITH_CODE_AND_EVENTS', // Add this line
 }
 
 export function generatePrompt(type: LLMRequestType, content: string): string {
@@ -19,6 +20,7 @@ Key requirements:
 5. The event tracking code should only run on the client-side.
 6. Use window.parent.postMessage to send events to the parent app.
 7. Import and use the useRouter hook from Next.js to access the router object.
+8. Do not make assumptions on what objects are defined outside of the file and the instruction provided.
 
 Here is the code to inject for event tracking:
 
@@ -111,6 +113,25 @@ ${content}
 
 Please respond with only the file path of the most likely entry point, enclosed in <FILE_PATH> tags. For example:
 <FILE_PATH>pages/_app.js</FILE_PATH>`;
+
+    case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
+      const { bugDescription, codeFiles, sessionEvents } = JSON.parse(content);
+      return `Analyze the following bug description, code files, and user session events to provide a summarized update to the bug description in the style of a Jira ticket. Keep the description short and precise. Focus on helping engineering with their investigation by telling them where to focus their effort.
+
+Bug Description:
+${bugDescription}
+
+Code Files:
+${codeFiles.map(file => `--- ${file.path} ---\n${file.content}\n`).join('\n')}
+
+User Session Events:
+${JSON.stringify(sessionEvents, null, 2)}
+
+Please provide an update to the bug description based on the relevant code and session events. Include the path to relevant files and small snippets of relevant code. Your response should follow this format:
+
+<UPDATED_BUG_DESCRIPTION>
+[Your updated bug description here in markdown format]
+</UPDATED_BUG_DESCRIPTION>`;
 
     default:
       throw new Error(`Unsupported request type: ${type}`);

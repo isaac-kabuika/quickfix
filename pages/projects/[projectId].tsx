@@ -12,6 +12,9 @@ import { LightningBoltIcon } from '@heroicons/react/solid'
 import { createLLMService, LLMService } from '../../services/llmService'
 import { diffLines } from 'diff';
 import { isEqual } from 'lodash';
+import FileSelectionPopup from '../../components/project/FileSelectionPopup';
+import { LLMRequestType } from '../../services/llmService';
+import AnalysisConfirmationPopup from '../../components/project/AnalysisConfirmationPopup';
 
 interface Project {
   id: string;
@@ -39,6 +42,7 @@ interface WebContainerStatus {
   isReady: boolean;
   isLoading: boolean;
   url?: string; // Add this line to store the WebContainer's URL
+  analysisResult: string | null;
 }
 
 interface TerminalOutput {
@@ -268,11 +272,11 @@ function ProjectPage() {
   const dataLoadedRef = useRef(false);
   const [repoContents, setRepoContents] = useState<RepoContent[]>([])
   const [loadingRepoContents, setLoadingRepoContents] = useState(false)
-  const [webContainerStatus, setWebContainerStatus] = useState<WebContainerStatus>({ status: '', isReady: false, isLoading: false })
+  const [webContainerStatus, setWebContainerStatus] = useState<WebContainerStatus>({ status: '', isReady: false, isLoading: false, analysisResult: null })
   const webContainerConsoleRef = useRef<WebContainerConsole | null>(null)
   const [uploadedZip, setUploadedZip] = useState<File | null>(null)
   const [terminalOutput, setTerminalOutput] = useState<TerminalOutput[]>([])
-  const [activeTab, setActiveTab] = useState<'console' | 'ui' | 'events'>('ui')
+  const [activeTab, setActiveTab] = useState<'console' | 'ui' | 'events' | 'results'>('ui')
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const consoleRef = useRef<HTMLDivElement>(null)
   const [expandedDescriptions, setExpandedDescriptions] = useState<Set<string>>(new Set());
@@ -292,6 +296,18 @@ function ProjectPage() {
     backendLogs: false,
     dataSnapshot: false,
   });
+  const [showFileSelectionPopup, setShowFileSelectionPopup] = useState(false);
+  const [webContainerFiles, setWebContainerFiles] = useState<string[]>([]);
+  const [analyzingBug, setAnalyzingBug] = useState(false);
+  const [showAnalysisConfirmation, setShowAnalysisConfirmation] = useState(false);
+  const [analysisData, setAnalysisData] = useState<{
+    bugDescription: string;
+    codeFiles: { path: string; content: string }[];
+    sessionEvents: any[];
+  } | null>(null);
+
+  // Add this new state to store the code files from the uploaded zip
+  const [uploadedCodeFiles, setUploadedCodeFiles] = useState<{ path: string; content: string }[]>([]);
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -430,7 +446,7 @@ function ProjectPage() {
         setEditedBug(null);
         setSelectedBugId(null);
         setUploadedZip(null);
-        setWebContainerStatus({ status: '', isReady: false, isLoading: false });
+        setWebContainerStatus({ status: '', isReady: false, isLoading: false, analysisResult: null });
       }
     }
   }
@@ -439,8 +455,10 @@ function ProjectPage() {
     const file = event.target.files?.[0]
     if (file && file.type === 'application/zip') {
       setUploadedZip(file)
-      setCompilationStatus('not-started');
-      setWebContainerStatus({ status: '', isReady: false, isLoading: false });
+      setCompilationStatus('not-started')
+      setWebContainerStatus({ status: '', isReady: false, isLoading: false, analysisResult: null })
+      // Update the codebase task status
+      setTaskStatus(prev => ({ ...prev, codebase: true }))
     } else {
       setError('Please upload a valid zip file')
     }
@@ -464,6 +482,7 @@ function ProjectPage() {
       const zip = new JSZip()
       const contents = await zip.loadAsync(zipFile)
       const files: Record<string, any> = {}
+      const codeFiles: { path: string; content: string }[] = [];
 
       // Determine the root directory
       const rootDir = contents.files[Object.keys(contents.files)[0]].name.split('/')[0]
@@ -489,10 +508,17 @@ function ProjectPage() {
             currentLevel = currentLevel[pathParts[i]].directory
           }
           currentLevel[pathParts[pathParts.length - 1]] = { file: { contents: content } }
+
+          // Add to codeFiles array
+          codeFiles.push({ path: relativePath, content });
         }
       }
 
+      // Store the code files
+      setUploadedCodeFiles(codeFiles);
+
       console.log('Files to be loaded into WebContainer:', files)
+      console.log('Code files extracted:', codeFiles)
 
       if (Object.keys(files).length === 0) {
         throw new Error('No valid files to load into WebContainer')
@@ -541,7 +567,7 @@ function ProjectPage() {
   }, []);
 
   const resetWebContainerState = () => {
-    setWebContainerStatus({ status: '', isReady: false, isLoading: false });
+    setWebContainerStatus({ status: '', isReady: false, isLoading: false, analysisResult: null });
     setUploadedZip(null);
     setTerminalOutput([]);
     setCompilationStatus('not-started');
@@ -575,7 +601,7 @@ function ProjectPage() {
       if (file.type === 'application/zip' || file.name.endsWith('.zip')) {
         setUploadedZip(file)
         setCompilationStatus('not-started')
-        setWebContainerStatus({ status: '', isReady: false, isLoading: false })
+        setWebContainerStatus({ status: '', isReady: false, isLoading: false, analysisResult: null })
         // Update the codebase task status
         setTaskStatus(prev => ({ ...prev, codebase: true }))
       } else {
@@ -665,9 +691,101 @@ function ProjectPage() {
     setIsFullScreen(false);
     await stopWebContainer();
     setActiveTab('events');
-    // Update the session task status
     setTaskStatus(prev => ({ ...prev, session: true }));
+    
+    // Get the list of files from the WebContainer
+    if (webContainerConsoleRef.current && webContainerConsoleRef.current.webcontainer) {
+      const fileStructure = await webContainerConsoleRef.current.getFileStructure();
+      setWebContainerFiles(fileStructure.split('\n').filter(file => !file.endsWith('/')));
+    }
+    
+    setShowFileSelectionPopup(true);
   }, [stopWebContainer]);
+
+  const handleFileSelection = async (selectedFiles: string[]) => {
+    setShowFileSelectionPopup(false);
+    setAnalyzingBug(true);
+
+    try {
+      const codeFiles = await Promise.all(selectedFiles.map(async (file) => ({
+        path: file,
+        content: await webContainerConsoleRef.current?.getFileContent(file) || '',
+      })));
+
+      const bugDescription = editedBug?.description || '';
+      const sessionEvents = Array.from(allEvents);
+
+      // Prepare the content string for the LLM request
+      const content = JSON.stringify({
+        bugDescription,
+        codeFiles,
+        sessionEvents,
+      });
+
+      const analysisResult = await llmService?.sendRequest(LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS, content);
+
+      if (analysisResult) {
+        const updatedDescription = analysisResult.match(/<UPDATED_BUG_DESCRIPTION>([\s\S]*?)<\/UPDATED_BUG_DESCRIPTION>/)?.[1] || '';
+        
+        if (editedBug) {
+          const updatedBug = await updateBugReport(editedBug.id, { ...editedBug, description: updatedDescription });
+          setBugs(currentBugs => currentBugs.map(bug => bug.id === updatedBug.id ? updatedBug : bug));
+          setEditedBug(updatedBug);
+        }
+      }
+    } catch (error) {
+      console.error('Error analyzing bug:', error);
+      setError('Failed to analyze bug');
+    } finally {
+      setAnalyzingBug(false);
+    }
+  };
+
+  const handleAnalyzeButtonClick = async () => {
+    const bugDescription = editedBug?.description || '';
+    const sessionEvents = Array.from(allEvents);
+
+    if (uploadedCodeFiles.length === 0) {
+      setError('No code files available. Please upload a zip file first.');
+      return;
+    }
+
+    setAnalysisData({ bugDescription, codeFiles: uploadedCodeFiles, sessionEvents });
+    setShowAnalysisConfirmation(true);
+  };
+
+  const handleAnalysisConfirm = async (selectedFiles: string[]) => {
+    if (!analysisData) return;
+
+    setShowAnalysisConfirmation(false);
+    setAnalyzingBug(true);
+
+    try {
+      const selectedCodeFiles = analysisData.codeFiles.filter(file => selectedFiles.includes(file.path));
+      const content = JSON.stringify({
+        ...analysisData,
+        codeFiles: selectedCodeFiles,
+      });
+
+      const analysisResult = await llmService?.sendRequest(LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS, content);
+
+      if (analysisResult) {
+        const updatedDescription = analysisResult.match(/<UPDATED_BUG_DESCRIPTION>([\s\S]*?)<\/UPDATED_BUG_DESCRIPTION>/)?.[1] || '';
+        setWebContainerStatus(prev => ({ ...prev, analysisResult: updatedDescription }));
+        
+        if (editedBug) {
+          const updatedBug = await updateBugReport(editedBug.id, { ...editedBug, description: updatedDescription });
+          setBugs(currentBugs => currentBugs.map(bug => bug.id === updatedBug.id ? updatedBug : bug));
+          setEditedBug(updatedBug);
+        }
+      }
+    } catch (error) {
+      console.error('Error analyzing bug:', error);
+      setError('Failed to analyze bug');
+    } finally {
+      setAnalyzingBug(false);
+    }
+  };
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
   if (error) return <div className="text-center text-red-500">{error}</div>
@@ -943,6 +1061,16 @@ function ProjectPage() {
                                       >
                                         Events
                                       </button>
+                                      <button
+                                        onClick={() => setActiveTab('results')}
+                                        className={`px-3 py-1 rounded-md text-sm font-medium ${
+                                          activeTab === 'results'
+                                            ? 'bg-black text-white'
+                                            : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
+                                        }`}
+                                      >
+                                        Results
+                                      </button>
                                     </div>
                                     {webContainerStatus.isReady && (
                                       <div className="flex space-x-2">
@@ -1036,7 +1164,7 @@ function ProjectPage() {
                                           </div>
                                         ))}
                                       </div>
-                                    ) : (
+                                    ) : activeTab === 'events' ? (
                                       <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
                                         <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">UI Events</h3>
                                         <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
@@ -1071,6 +1199,26 @@ function ProjectPage() {
                                               </li>
                                             ))}
                                           </ul>
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
+                                        <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Analysis Results</h3>
+                                        {webContainerStatus.analysisResult ? (
+                                          <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
+                                            {webContainerStatus.analysisResult}
+                                          </div>
+                                        ) : (
+                                          <div className="flex flex-col items-center justify-center h-full">
+                                            <p className="text-gray-500 dark:text-gray-400 mb-4">No analysis results yet.</p>
+                                            <button
+                                              onClick={handleAnalyzeButtonClick}
+                                              disabled={analyzingBug}
+                                              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+                                            >
+                                              {analyzingBug ? 'Analyzing...' : 'Analyze Bug'}
+                                            </button>
+                                          </div>
                                         )}
                                       </div>
                                     )}
@@ -1130,6 +1278,16 @@ function ProjectPage() {
           </div>
         )}
       </div>
+
+      {showAnalysisConfirmation && analysisData && (
+        <AnalysisConfirmationPopup
+          bugDescription={analysisData.bugDescription}
+          codeFiles={analysisData.codeFiles}
+          sessionEvents={analysisData.sessionEvents}
+          onConfirm={handleAnalysisConfirm}
+          onCancel={() => setShowAnalysisConfirmation(false)}
+        />
+      )}
     </div>
   )
 }
