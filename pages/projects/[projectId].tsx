@@ -20,6 +20,8 @@ import AnalysisResultView from '../../components/project/AnalysisResultView';
 import { LightBulbIcon } from '@heroicons/react/solid';
 import { ClipboardListIcon } from '@heroicons/react/solid';
 import { TerminalIcon } from '@heroicons/react/solid';
+import Convert from 'ansi-to-html';
+import DOMPurify from 'dompurify';
 
 interface Project {
   id: string;
@@ -281,6 +283,7 @@ function ProjectPage() {
   const webContainerConsoleRef = useRef<WebContainerConsole | null>(null)
   const [uploadedZip, setUploadedZip] = useState<File | null>(null)
   const [terminalOutput, setTerminalOutput] = useState<TerminalOutput[]>([])
+  const [persistentTerminalOutput, setPersistentTerminalOutput] = useState<TerminalOutput[]>([])
   const [activeTab, setActiveTab] = useState<'console' | 'ui' | 'events' | 'results'>('ui')
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const consoleRef = useRef<HTMLDivElement>(null)
@@ -315,6 +318,13 @@ function ProjectPage() {
 
   // Add this new state to store the code files from the uploaded zip
   const [uploadedCodeFiles, setUploadedCodeFiles] = useState<{ path: string; content: string }[]>([]);
+
+  const [convert] = useState(() => new Convert({newline: true}));
+
+  const renderConsoleOutput = useCallback((content: string) => {
+    const sanitizedHtml = DOMPurify.sanitize(convert.toHtml(content));
+    return <span dangerouslySetInnerHTML={{ __html: sanitizedHtml }} />;
+  }, [convert]);
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -473,6 +483,7 @@ function ProjectPage() {
 
   const initWebContainer = useCallback(async (zipFile: File) => {
     resetWebContainerState();
+    setPersistentTerminalOutput([]); // Clear persistent logs when starting a new session
     setWebContainerStatus(prev => ({ ...prev, status: 'starting', isLoading: true }));
     if (!webContainerConsoleRef.current && llmService) {
       webContainerConsoleRef.current = new WebContainerConsole((status) => {
@@ -569,18 +580,28 @@ function ProjectPage() {
       setTerminalOutput(prev => [...prev, { type: 'command', content: 'Stopping server...' }]);
       await webContainerConsoleRef.current.stopServer();
       setTerminalOutput(prev => [...prev, { type: 'output', content: 'Server stopped' }]);
-      resetWebContainerState();
+      
+      // Update the persistent terminal output
+      setPersistentTerminalOutput(prevPersistent => [...prevPersistent, ...terminalOutput]);
+
+      // Reset WebContainer state without clearing the logs
+      setWebContainerStatus({ status: '', isReady: false, isLoading: false, analysisResult: null });
+      setUploadedZip(null);
+      setCompilationStatus('not-started');
+      if (webContainerConsoleRef.current) {
+        webContainerConsoleRef.current = null;
+      }
     }
-  }, []);
+  }, [terminalOutput]);
 
   const resetWebContainerState = () => {
     setWebContainerStatus({ status: '', isReady: false, isLoading: false, analysisResult: null });
     setUploadedZip(null);
-    setTerminalOutput([]);
     setCompilationStatus('not-started');
     if (webContainerConsoleRef.current) {
       webContainerConsoleRef.current = null;
     }
+    // Don't clear the terminalOutput here
   };
 
   // Add this new useEffect
@@ -797,10 +818,6 @@ function ProjectPage() {
       }
     }
   }, [editedBug, analysisResult]);
-
-  const handleRejectAnalysis = useCallback(() => {
-    setAnalysisResult(null);
-  }, []);
 
   const handleAnalyzeButtonClick = useCallback(() => {
     const bugDescription = editedBug?.description || '';
@@ -1197,10 +1214,12 @@ function ProjectPage() {
                                             Console Logs
                                             <TerminalIcon className="w-5 h-5 ml-2 text-green-500" />
                                           </h3>
-                                          <span className="text-sm text-gray-500 dark:text-gray-400">Total logs: {terminalOutput.length}</span>
+                                          <span className="text-sm text-gray-500 dark:text-gray-400">
+                                            Total logs: {persistentTerminalOutput.length + terminalOutput.length}
+                                          </span>
                                         </div>
                                         <div className="p-4">
-                                          {terminalOutput.length === 0 ? (
+                                          {persistentTerminalOutput.length === 0 && terminalOutput.length === 0 ? (
                                             <div className="flex flex-col items-center justify-center py-12">
                                               <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
@@ -1215,10 +1234,10 @@ function ProjectPage() {
                                               ref={consoleRef}
                                               className="bg-black text-green-400 p-4 rounded h-64 overflow-y-auto font-mono text-sm"
                                             >
-                                              {terminalOutput.map((line, index) => (
+                                              {[...persistentTerminalOutput, ...terminalOutput].map((line, index) => (
                                                 <div key={index} className={line.type === 'command' ? 'text-yellow-400' : ''}>
                                                   {line.type === 'command' ? '$ ' : ''}
-                                                  {line.content}
+                                                  {renderConsoleOutput(line.content)}
                                                 </div>
                                               ))}
                                             </div>
