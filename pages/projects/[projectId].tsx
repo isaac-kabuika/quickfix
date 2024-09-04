@@ -284,6 +284,14 @@ function ProjectPage() {
   const [llmService, setLLMService] = useState<LLMService | null>(null);
   const [sessionEvents, setSessionEvents] = useState<UIEvent[]>([]);
   const [allEvents, setAllEvents] = useState<Set<UIEvent>>(new Set());
+  const [taskStatus, setTaskStatus] = useState({
+    ticketing: true,
+    codebase: false,
+    session: false,
+    codeFlow: false,
+    backendLogs: false,
+    dataSnapshot: false,
+  });
 
   const loadProjectAndBugs = useCallback(async () => {
     if (!projectId || typeof projectId !== 'string' || dataLoadedRef.current) return;
@@ -568,6 +576,8 @@ function ProjectPage() {
         setUploadedZip(file)
         setCompilationStatus('not-started')
         setWebContainerStatus({ status: '', isReady: false, isLoading: false })
+        // Update the codebase task status
+        setTaskStatus(prev => ({ ...prev, codebase: true }))
       } else {
         setError('Please upload a valid zip file')
       }
@@ -655,6 +665,8 @@ function ProjectPage() {
     setIsFullScreen(false);
     await stopWebContainer();
     setActiveTab('events');
+    // Update the session task status
+    setTaskStatus(prev => ({ ...prev, session: true }));
   }, [stopWebContainer]);
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
@@ -1090,13 +1102,12 @@ function ProjectPage() {
                                     <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tasks</h3>
                                       <div>
                                         <div className="flex flex-col space-y-2">
-                                          <TaskChip task="Start app" isDone={true} />
-                                          <TaskChip task="Record bug session" isDone={false} />
-                                          <TaskChip task="Analyze" isDone={false} isAutomated={true} />
-                                          <TaskChip task="Reproduce" isDone={false} isAutomated={true} />
-                                          <TaskChip task="Draft" isDone={false} isAutomated={true} />
-                                          <TaskChip task="Test" isDone={false} isAutomated={true} />
-                                          <TaskChip task="Submit" isDone={false} isAutomated={true} />
+                                          <TaskChip task="Ticketing" isDone={taskStatus.ticketing} />
+                                          <TaskChip task="Codebase" isDone={taskStatus.codebase} />
+                                          <TaskChip task="Session" isDone={taskStatus.session} />
+                                          <TaskChip task="Code Flow" isDone={taskStatus.codeFlow} isAutomated={true} />
+                                          <TaskChip task="Logs Summary" isDone={taskStatus.backendLogs} isAutomated={true} />
+                                          <TaskChip task="Data Snapshot" isDone={taskStatus.dataSnapshot} isAutomated={true} />
                                         </div>
                                       </div>
                                   </div>
