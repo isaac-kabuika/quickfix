@@ -68,10 +68,7 @@ useEffect(() => {
   };
 
   const handleError = (...args) => {
-    const errorMessage = args.map(arg => 
-      typeof arg === 'string' ? arg : JSON.stringify(arg)
-    ).join(' ');
-    trackEvent('error', { details: 'Error: ' + errorMessage });
+    trackEvent('error', { details: '' + args });
   };
 
   document.addEventListener('click', handleUIEvent);
@@ -124,7 +121,7 @@ ${bugDescription}
 Code Files:
 ${codeFiles.map(file => `--- ${file.path} ---\n${file.content}\n`).join('\n')}
 
-User Session Events:
+User Session Events (use for understanding how the issue happened):
 ${JSON.stringify(sessionEvents, null, 2)}
 
 Please provide an update to the bug description based on the relevant code and session events. Include the path to relevant files and small snippets of relevant code. Your response should follow this format:
