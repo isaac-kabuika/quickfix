@@ -130,7 +130,7 @@ ${JSON.stringify(sessionEvents, null, 2)}
 Please provide an update to the bug description based on the relevant code and session events. Include the path to relevant files and small snippets of relevant code. Your response should follow this format:
 
 <UPDATED_BUG_DESCRIPTION>
-[Your updated bug description here in markdown format]
+[Your updated bug description here in markdown format with highlights and text size changes where needed, and organized bullet points]
 </UPDATED_BUG_DESCRIPTION>`;
 
     default:

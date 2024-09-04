@@ -10,7 +10,7 @@ interface AnalysisResultViewProps {
 const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({ analysisResult, onAccept, onReject }) => {
   return (
     <div>
-      <div className="prose dark:prose-invert max-w-none mb-6">
+      <div className="mb-6 overflow-auto">
         <ReactMarkdown>{analysisResult}</ReactMarkdown>
       </div>
       <div className="flex justify-end space-x-2 mt-4">
