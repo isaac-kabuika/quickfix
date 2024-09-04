@@ -306,6 +306,7 @@ function ProjectPage() {
     codeFiles: { path: string; content: string }[];
     sessionEvents: any[];
   } | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<string | null>(null);
 
   // Add this new state to store the code files from the uploaded zip
   const [uploadedCodeFiles, setUploadedCodeFiles] = useState<{ path: string; content: string }[]>([]);
@@ -742,19 +743,6 @@ function ProjectPage() {
     }
   };
 
-  const handleAnalyzeButtonClick = async () => {
-    const bugDescription = editedBug?.description || '';
-    const sessionEvents = Array.from(allEvents);
-
-    if (uploadedCodeFiles.length === 0) {
-      setError('No code files available. Please upload a zip file first.');
-      return;
-    }
-
-    setAnalysisData({ bugDescription, codeFiles: uploadedCodeFiles, sessionEvents });
-    setShowAnalysisConfirmation(true);
-  };
-
   const handleAnalysisConfirm = async (selectedFiles: string[]) => {
     if (!analysisData) return;
 
@@ -768,17 +756,12 @@ function ProjectPage() {
         codeFiles: selectedCodeFiles,
       });
 
-      const analysisResult = await llmService?.sendRequest(LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS, content);
+      const result = await llmService?.sendRequest(LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS, content);
 
-      if (analysisResult) {
-        const updatedDescription = analysisResult.match(/<UPDATED_BUG_DESCRIPTION>([\s\S]*?)<\/UPDATED_BUG_DESCRIPTION>/)?.[1] || '';
-        setWebContainerStatus(prev => ({ ...prev, analysisResult: updatedDescription }));
-        
-        if (editedBug) {
-          const updatedBug = await updateBugReport(editedBug.id, { ...editedBug, description: updatedDescription });
-          setBugs(currentBugs => currentBugs.map(bug => bug.id === updatedBug.id ? updatedBug : bug));
-          setEditedBug(updatedBug);
-        }
+      if (result) {
+        const updatedDescription = result.match(/<UPDATED_BUG_DESCRIPTION>([\s\S]*?)<\/UPDATED_BUG_DESCRIPTION>/)?.[1] || '';
+        setAnalysisResult(updatedDescription);
+        setActiveTab('results');
       }
     } catch (error) {
       console.error('Error analyzing bug:', error);
@@ -787,6 +770,37 @@ function ProjectPage() {
       setAnalyzingBug(false);
     }
   };
+
+  const handleAcceptAnalysis = useCallback(async () => {
+    if (editedBug && analysisResult) {
+      try {
+        const updatedBug = await updateBugReport(editedBug.id, { ...editedBug, description: analysisResult });
+        setBugs(currentBugs => currentBugs.map(bug => bug.id === updatedBug.id ? updatedBug : bug));
+        setEditedBug(updatedBug);
+        setAnalysisResult(null);
+      } catch (error) {
+        console.error('Error updating bug description:', error);
+        setError('Failed to update bug description');
+      }
+    }
+  }, [editedBug, analysisResult]);
+
+  const handleRejectAnalysis = useCallback(() => {
+    setAnalysisResult(null);
+  }, []);
+
+  const handleAnalyzeButtonClick = useCallback(() => {
+    const bugDescription = editedBug?.description || '';
+    const sessionEvents = Array.from(allEvents);
+
+    if (uploadedCodeFiles.length === 0) {
+      setError('No code files available. Please upload a zip file first.');
+      return;
+    }
+
+    setAnalysisData({ bugDescription, codeFiles: uploadedCodeFiles, sessionEvents });
+    setShowAnalysisConfirmation(true);
+  }, [editedBug, allEvents, uploadedCodeFiles]);
 
   if (loading) return <div className="flex justify-center items-center h-screen">Loading...</div>
   if (error) return <div className="text-center text-red-500">{error}</div>
@@ -1209,10 +1223,26 @@ function ProjectPage() {
                                     ) : (
                                       <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
                                         <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Analysis Results</h3>
-                                        {webContainerStatus.analysisResult ? (
-                                          <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap">
-                                            {webContainerStatus.analysisResult}
-                                          </div>
+                                        {analysisResult ? (
+                                          <>
+                                            <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mb-4">
+                                              {analysisResult}
+                                            </div>
+                                            <div className="flex justify-end space-x-2">
+                                              <button
+                                                onClick={handleRejectAnalysis}
+                                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                              >
+                                                Reject
+                                              </button>
+                                              <button
+                                                onClick={handleAcceptAnalysis}
+                                                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
+                                              >
+                                                Accept
+                                              </button>
+                                            </div>
+                                          </>
                                         ) : (
                                           <div className="flex flex-col items-center justify-center h-full">
                                             <p className="text-gray-500 dark:text-gray-400 mb-4">No analysis results yet.</p>
