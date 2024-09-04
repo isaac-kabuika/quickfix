@@ -16,6 +16,10 @@ import FileSelectionPopup from '../../components/project/FileSelectionPopup';
 import { LLMRequestType } from '../../services/llmService';
 import AnalysisConfirmationPopup from '../../components/project/AnalysisConfirmationPopup';
 import ReactMarkdown from 'react-markdown'
+import AnalysisResultView from '../../components/project/AnalysisResultView';
+import { LightBulbIcon } from '@heroicons/react/solid';
+import { ClipboardListIcon } from '@heroicons/react/solid';
+import { TerminalIcon } from '@heroicons/react/solid';
 
 interface Project {
   id: string;
@@ -180,7 +184,7 @@ const UploadedFileDetails: React.FC<UploadedFileDetailsProps> = ({ file, onStart
         }}
         className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
       >
-        <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
@@ -307,6 +311,7 @@ function ProjectPage() {
     sessionEvents: any[];
   } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
+  const [showAnalysisResultPopup, setShowAnalysisResultPopup] = useState(false);
 
   // Add this new state to store the code files from the uploaded zip
   const [uploadedCodeFiles, setUploadedCodeFiles] = useState<{ path: string; content: string }[]>([]);
@@ -1172,89 +1177,144 @@ function ProjectPage() {
                                         )}
                                       </div>
                                     ) : activeTab === 'console' ? (
-                                      <div 
-                                        ref={consoleRef}
-                                        className="bg-black text-green-400 p-4 rounded h-64 overflow-y-auto font-mono text-sm"
-                                      >
-                                        {terminalOutput.map((line, index) => (
-                                          <div key={index} className={line.type === 'command' ? 'text-yellow-400' : ''}>
-                                            {line.type === 'command' ? '$ ' : ''}
-                                            {line.content}
-                                          </div>
-                                        ))}
+                                      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-grow">
+                                        <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex justify-between items-center">
+                                          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+                                            Console Logs
+                                            <TerminalIcon className="w-5 h-5 ml-2 text-green-500" />
+                                          </h3>
+                                          <span className="text-sm text-gray-500 dark:text-gray-400">Total logs: {terminalOutput.length}</span>
+                                        </div>
+                                        <div className="p-4">
+                                          {terminalOutput.length === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-12">
+                                              <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                              </svg>
+                                              <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Console Logs Yet</p>
+                                              <p className="text-gray-500 dark:text-gray-400 text-center max-w-md">
+                                                Start the application in the WebContainer to generate console logs. They will be displayed here once available.
+                                              </p>
+                                            </div>
+                                          ) : (
+                                            <div 
+                                              ref={consoleRef}
+                                              className="bg-black text-green-400 p-4 rounded h-64 overflow-y-auto font-mono text-sm"
+                                            >
+                                              {terminalOutput.map((line, index) => (
+                                                <div key={index} className={line.type === 'command' ? 'text-yellow-400' : ''}>
+                                                  {line.type === 'command' ? '$ ' : ''}
+                                                  {line.content}
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
                                       </div>
                                     ) : activeTab === 'events' ? (
-                                      <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
-                                        <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">UI Events</h3>
-                                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-                                          Total events: {allEvents.size}
-                                        </p>
-                                        {allEvents.size === 0 ? (
-                                          <p className="text-gray-500 dark:text-gray-400">No events recorded yet.</p>
-                                        ) : (
-                                          <ul className="space-y-4">
-                                            {Array.from(allEvents).map((event, index) => (
-                                              <li key={index} className="bg-gray-50 dark:bg-gray-700 p-4 rounded">
-                                                <p className="text-sm text-gray-800 dark:text-gray-200 mb-1">
-                                                  <span className="font-semibold">{event.type}</span>
+                                      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-grow">
+                                        <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex justify-between items-center">
+                                          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+                                            UI Events
+                                            <ClipboardListIcon className="w-5 h-5 ml-2 text-blue-500" />
+                                          </h3>
+                                          <span className="text-sm text-gray-500 dark:text-gray-400">Total events: {allEvents.size}</span>
+                                        </div>
+                                        <div className="p-4">
+                                          {allEvents.size === 0 ? (
+                                            <div className="flex flex-col items-center justify-center py-12">
+                                              <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+                                              </svg>
+                                              <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Events Recorded Yet</p>
+                                              <p className="text-gray-500 dark:text-gray-400 text-center max-w-md">
+                                                Interact with the application in the WebContainer to generate UI events. They will be displayed here once recorded.
+                                              </p>
+                                            </div>
+                                          ) : (
+                                            <ul className="space-y-4 max-h-[calc(100vh-20rem)] overflow-y-auto">
+                                              {Array.from(allEvents).map((event, index) => (
+                                                <li key={index} className="bg-gray-50 dark:bg-gray-700 p-4 rounded-lg shadow">
+                                                  <div className="flex justify-between items-start mb-2">
+                                                    <span className="text-sm font-semibold text-gray-800 dark:text-gray-200 bg-blue-100 dark:bg-blue-800 px-2 py-1 rounded">
+                                                      {event.type}
+                                                    </span>
+                                                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                                                      {new Date(event.timestamp).toLocaleString()}
+                                                    </span>
+                                                  </div>
                                                   {event.target && (
-                                                    <span> on {event.target.tagName}
+                                                    <p className="text-sm text-gray-600 dark:text-gray-300 mb-1">
+                                                      <span className="font-medium">Target:</span> {event.target.tagName}
                                                       {event.target.id && <span className="ml-2">ID: {event.target.id}</span>}
                                                       {event.target.className && <span className="ml-2">Class: {event.target.className}</span>}
-                                                    </span>
+                                                    </p>
                                                   )}
-                                                </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">
-                                                  Path: {event.currentPath}
-                                                </p>
-                                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
-                                                  {new Date(event.timestamp).toLocaleString()}
-                                                </p>
-                                                {event.details && (
-                                                  <pre className="text-xs text-gray-600 dark:text-gray-300 whitespace-pre-wrap break-words">
-                                                    {event.details}
-                                                  </pre>
-                                                )}
-                                              </li>
-                                            ))}
-                                          </ul>
-                                        )}
+                                                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                                    <span className="font-medium">Path:</span> {event.currentPath}
+                                                  </p>
+                                                  {event.details && (
+                                                    <div className="mt-2">
+                                                      <p className="text-xs font-medium text-gray-600 dark:text-gray-300 mb-1">Details:</p>
+                                                      <pre className="text-xs text-gray-600 dark:text-gray-300 bg-gray-100 dark:bg-gray-600 p-2 rounded whitespace-pre-wrap break-words">
+                                                        {event.details}
+                                                      </pre>
+                                                    </div>
+                                                  )}
+                                                </li>
+                                              ))}
+                                            </ul>
+                                          )}
+                                        </div>
                                       </div>
                                     ) : (
-                                      <div className="bg-white dark:bg-gray-800 p-4 rounded h-64 overflow-y-auto">
-                                        <h3 className="text-lg font-semibold mb-2 text-gray-800 dark:text-gray-200">Analysis Results</h3>
-                                        {analysisResult ? (
-                                          <>
-                                            <div className="text-sm text-gray-600 dark:text-gray-300 whitespace-pre-wrap mb-4">
-                                              {analysisResult}
-                                            </div>
-                                            <div className="flex justify-end space-x-2">
+                                      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-grow">
+                                        <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex justify-between items-center">
+                                          <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
+                                            Analysis Results
+                                            <LightBulbIcon className="w-5 h-5 ml-2 text-yellow-500" />
+                                          </h3>
+                                          <span className="text-sm text-gray-500 dark:text-gray-400">AI Generated</span>
+                                        </div>
+                                        <div className="p-4">
+                                          {analysisResult ? (
+                                            <AnalysisResultView
+                                              analysisResult={analysisResult}
+                                              onAccept={handleAcceptAnalysis}
+                                              onReject={handleRejectAnalysis}
+                                            />
+                                          ) : (
+                                            <div className="flex flex-col items-center justify-center py-12">
+                                              <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                              </svg>
+                                              <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Analysis Results Yet</p>
+                                              <p className="text-gray-500 dark:text-gray-400 mb-6 text-center max-w-md">
+                                                Click the button below to analyze the bug using AI. This will help identify potential issues and suggest solutions.
+                                              </p>
                                               <button
-                                                onClick={handleRejectAnalysis}
-                                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600 transition-colors"
+                                                onClick={handleAnalyzeButtonClick}
+                                                disabled={analyzingBug}
+                                                className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
                                               >
-                                                Reject
-                                              </button>
-                                              <button
-                                                onClick={handleAcceptAnalysis}
-                                                className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 transition-colors"
-                                              >
-                                                Accept
+                                                {analyzingBug ? (
+                                                  <>
+                                                    <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-gray-800 dark:text-gray-200" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                    </svg>
+                                                    Analyzing...
+                                                  </>
+                                                ) : (
+                                                  <>
+                                                    <LightBulbIcon className="w-4 h-4 mr-2" />
+                                                    Analyze Bug
+                                                  </>
+                                                )}
                                               </button>
                                             </div>
-                                          </>
-                                        ) : (
-                                          <div className="flex flex-col items-center justify-center h-full">
-                                            <p className="text-gray-500 dark:text-gray-400 mb-4">No analysis results yet.</p>
-                                            <button
-                                              onClick={handleAnalyzeButtonClick}
-                                              disabled={analyzingBug}
-                                              className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
-                                            >
-                                              {analyzingBug ? 'Analyzing...' : 'Analyze Bug'}
-                                            </button>
-                                          </div>
-                                        )}
+                                          )}
+                                        </div>
                                       </div>
                                     )}
                                   </div>
