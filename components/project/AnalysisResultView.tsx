@@ -1,5 +1,9 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { tomorrow } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import rehypeRaw from 'rehype-raw';
 
 interface AnalysisResultViewProps {
   analysisResult: string;
@@ -10,8 +14,32 @@ interface AnalysisResultViewProps {
 const AnalysisResultView: React.FC<AnalysisResultViewProps> = ({ analysisResult, onAccept, onReject }) => {
   return (
     <div>
-      <div className="mb-6 overflow-auto">
-        <ReactMarkdown>{analysisResult}</ReactMarkdown>
+      <div className="mb-6 overflow-auto prose dark:prose-invert max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          rehypePlugins={[rehypeRaw]}
+          components={{
+            code({node, inline, className, children, ...props}) {
+              const match = /language-(\w+)/.exec(className || '');
+              return !inline && match ? (
+                <SyntaxHighlighter
+                  style={tomorrow}
+                  language={match[1]}
+                  PreTag="div"
+                  {...props}
+                >
+                  {String(children).replace(/\n$/, '')}
+                </SyntaxHighlighter>
+              ) : (
+                <code className={className} {...props}>
+                  {children}
+                </code>
+              );
+            }
+          }}
+        >
+          {analysisResult}
+        </ReactMarkdown>
       </div>
       <div className="flex justify-end space-x-2 mt-4">
         <button

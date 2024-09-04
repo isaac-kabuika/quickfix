@@ -32,13 +32,6 @@ module.exports = {
       typography: (theme) => ({
         DEFAULT: {
           css: {
-            color: theme('colors.gray.900'),
-            a: {
-              color: theme('colors.blue.600'),
-              '&:hover': {
-                color: theme('colors.blue.800'),
-              },
-            },
             'code::before': {
               content: '""',
             },
@@ -53,7 +46,7 @@ module.exports = {
             a: {
               color: theme('colors.blue.400'),
               '&:hover': {
-                color: theme('colors.blue.600'),
+                color: theme('colors.blue.300'),
               },
             },
             h1: {
