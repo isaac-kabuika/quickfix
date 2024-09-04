@@ -207,7 +207,15 @@ const TaskChip: React.FC<TaskChipProps> = ({ task, isDone, isAutomated = false }
     {isAutomated ? (
       <LightningBoltIcon className={`w-4 h-4 ${isDone ? 'text-green-500' : 'text-gray-400'}`} />
     ) : (
-      <div className={`w-2 h-2 rounded-full ${isDone ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+      <div className={`w-4 h-4 flex items-center justify-center ${isDone ? 'text-green-500' : 'text-gray-400'}`}>
+        {isDone ? (
+          <svg className="w-full h-full" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        ) : (
+          <div className="w-2 h-2 rounded-full bg-gray-400"></div>
+        )}
+      </div>
     )}
     <span>{task}</span>
   </div>
