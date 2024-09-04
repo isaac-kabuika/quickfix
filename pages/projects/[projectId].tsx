@@ -720,7 +720,13 @@ function ProjectPage() {
       })));
 
       const bugDescription = editedBug?.description || '';
-      const sessionEvents = Array.from(allEvents);
+      const sessionEvents = Array.from(allEvents).map(event => ({
+        type: event.type,
+        target: event.target,
+        currentPath: event.currentPath,
+        timestamp: event.timestamp,
+        details: event.details || {}
+      }));
 
       // Prepare the content string for the LLM request
       const content = JSON.stringify({
@@ -796,7 +802,13 @@ function ProjectPage() {
 
   const handleAnalyzeButtonClick = useCallback(() => {
     const bugDescription = editedBug?.description || '';
-    const sessionEvents = Array.from(allEvents);
+    const sessionEvents = Array.from(allEvents).map(event => ({
+      type: event.type,
+      target: event.target,
+      currentPath: event.currentPath,
+      timestamp: event.timestamp,
+      details: event.details || {}
+    }));
 
     if (uploadedCodeFiles.length === 0) {
       setError('No code files available. Please upload a zip file first.');
