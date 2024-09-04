@@ -53,7 +53,8 @@ export class WebContainerConsole {
         write: (chunk) => {
           const trimmedChunk = chunk.trim();
           if (trimmedChunk) {
-            this.statusCallback(`Server: ${trimmedChunk}`);
+            // Remove this line to avoid duplicate messages
+            // this.statusCallback(`Server: ${trimmedChunk}`);
             if (this.outputCallback) {
               this.outputCallback(trimmedChunk);
             }
