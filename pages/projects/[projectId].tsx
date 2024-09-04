@@ -773,6 +773,8 @@ function ProjectPage() {
         const updatedDescription = result.match(/<UPDATED_BUG_DESCRIPTION>([\s\S]*?)<\/UPDATED_BUG_DESCRIPTION>/)?.[1] || '';
         setAnalysisResult(updatedDescription);
         setActiveTab('results');
+        // Mark the "Code Flow" task as complete
+        setTaskStatus(prev => ({ ...prev, codeFlow: true }));
       }
     } catch (error) {
       console.error('Error analyzing bug:', error);
@@ -1105,7 +1107,7 @@ function ProjectPage() {
                                             : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
                                         }`}
                                       >
-                                        Results
+                                        Analysis
                                       </button>
                                     </div>
                                     {webContainerStatus.isReady && (
@@ -1302,7 +1304,7 @@ function ProjectPage() {
                                               </svg>
                                               <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Analysis Results Yet</p>
                                               <p className="text-gray-500 dark:text-gray-400 mb-6 text-center max-w-md">
-                                                Click the button below to analyze the bug using AI. This will help identify potential issues and suggest solutions.
+                                                Click the button below to analyze the issue using source data. This will help identify potential leads.
                                               </p>
                                               <button
                                                 onClick={handleAnalyzeButtonClick}
