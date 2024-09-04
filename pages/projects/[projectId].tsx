@@ -15,6 +15,7 @@ import { isEqual } from 'lodash';
 import FileSelectionPopup from '../../components/project/FileSelectionPopup';
 import { LLMRequestType } from '../../services/llmService';
 import AnalysisConfirmationPopup from '../../components/project/AnalysisConfirmationPopup';
+import ReactMarkdown from 'react-markdown'
 
 interface Project {
   id: string;
@@ -949,12 +950,12 @@ function ProjectPage() {
             <table className="w-full border-collapse">
               <thead className="bg-gray-50 dark:bg-gray-700 sticky top-0">
                 <tr>
-                  <th className="w-16 px-2 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">
+                  <th className="w-12 px-2 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">
                     {/* Remove the checkbox here */}
                   </th>
                   <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">Description</th>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">Status</th>
-                  <th className="px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-gray-200 dark:border-gray-600">Created At</th>
+                  <th className="w-24 px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-r border-gray-200 dark:border-gray-600">Status</th>
+                  <th className="w-32 px-4 py-2 text-left text-xs font-bold text-black dark:text-gray-300 tracking-wider border-b border-gray-200 dark:border-gray-600">Created At</th>
                 </tr>
               </thead>
               <tbody className="bg-white dark:bg-gray-800">
@@ -967,7 +968,7 @@ function ProjectPage() {
                           : 'hover:bg-gray-50 dark:hover:bg-gray-750'
                       }`}
                     >
-                      <td className="w-16 px-2 py-2 border-r border-gray-200 dark:border-gray-600 align-top">
+                      <td className="w-12 px-2 py-2 border-r border-gray-200 dark:border-gray-600 align-top">
                         <div className="flex items-center">
                           <input
                             type="radio"
@@ -981,41 +982,45 @@ function ProjectPage() {
                         className="px-4 py-2 border-r border-gray-200 dark:border-gray-600 align-top cursor-pointer relative"
                         onClick={() => handleRowClick(bug.id)}
                       >
-                        <div className="flex justify-between items-center">
-                          <span>{bug.description}</span>
-                          <div className="relative">
+                        <div className="flex justify-between items-start">
+                          <div className="prose dark:prose-invert max-w-none overflow-hidden">
+                            <ReactMarkdown className={`${selectedBugId === bug.id ? '' : 'line-clamp-3'} break-words max-w-xl`}>
+                              {bug.description}
+                            </ReactMarkdown>
+                          </div>
+                          <div className="flex-shrink-0 ml-2">
                             <button
                               onClick={(e) => {
                                 e.stopPropagation();
                                 setEditingBugId(editingBugId === bug.id ? null : bug.id);
                               }}
-                              className="ml-2 bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
+                              className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 p-1 rounded-full hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600"
                             >
                               <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
                               </svg>
                             </button>
-                            {editingBugId === bug.id && (
-                              <BugDescriptionEditDropdown
-                                bug={bug}
-                                onSave={(newDescription: string) => {
-                                  handleSaveBugDescription(newDescription);
-                                  setEditingBugId(null);
-                                }}
-                                onClose={() => setEditingBugId(null)}
-                              />
-                            )}
                           </div>
                         </div>
+                        {editingBugId === bug.id && (
+                          <BugDescriptionEditDropdown
+                            bug={bug}
+                            onSave={(newDescription: string) => {
+                              handleSaveBugDescription(newDescription);
+                              setEditingBugId(null);
+                            }}
+                            onClose={() => setEditingBugId(null)}
+                          />
+                        )}
                       </td>
                       <td 
-                        className="px-4 py-2 text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600 align-top cursor-pointer"
+                        className="w-24 px-4 py-2 text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600 align-top cursor-pointer whitespace-nowrap"
                         onClick={() => handleRowClick(bug.id)}
                       >
                         {bug.status}
                       </td>
                       <td 
-                        className="px-4 py-2 text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600 align-top cursor-pointer"
+                        className="w-32 px-4 py-2 text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600 align-top cursor-pointer whitespace-nowrap"
                         onClick={() => handleRowClick(bug.id)}
                       >
                         {new Date(bug.created_at).toLocaleDateString()}
@@ -1229,23 +1234,9 @@ function ProjectPage() {
                               {/* Separator */}
                               <div className="w-px bg-gray-200 dark:bg-gray-600"></div>
 
-                              {/* Right side content (Description and Task Chips) */}
+                              {/* Right side content (Task Chips) */}
                               <div className="w-1/2 pl-4">
                                 <div className="flex flex-col">
-                                  {expandedDescriptions.has(bug.id) && (
-                                    <div className="mb-4">
-                                      <label htmlFor={`bugDescription-${bug.id}`} className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Description
-                                      </label>
-                                      <textarea
-                                        id={`bugDescription-${bug.id}`}
-                                        value={editedBug?.id === bug.id ? editedBug.description : bug.description}
-                                        onChange={(e) => setEditedBug({...bug, description: e.target.value})}
-                                        className="w-full p-2 border rounded bg-white dark:bg-gray-600 text-gray-900 dark:text-gray-100 focus:ring-2 focus:ring-blue-500"
-                                        rows={3}
-                                      />
-                                    </div>
-                                  )}
                                   <div className="mt-2">
                                     <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Tasks</h3>
                                       <div>
