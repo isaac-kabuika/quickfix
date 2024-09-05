@@ -235,7 +235,7 @@ function MyApp({ Component, pageProps }: AppProps) {
 
 export default MyApp
 </UPDATED_CONTENT>`,
-[LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS]:`<UPDATED_BUG_DESCRIPTION>
+[LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS]:`<REPORT>
 ### Issue: "Page not found" error when navigating to "/how-it-works"
 
 Based on the provided code and session events, the issue seems to be related to the client-side code for the "/how-it-works" page not being correctly loaded or bundled.
@@ -253,6 +253,6 @@ Potential steps to investigate and fix the issue:
 - **Check the Next.js build process**: Ensure that the Next.js build process is correctly bundling and including the \`how-it-works\` page in the output. Look for any build errors or warnings related to this page.
 - **Review the routing configuration**: Confirm that the routing configuration in \`next.config.js\` (if present) is correct and includes the \`/how-it-works\` route.
 - **Check the link component**: In \`pages/index.tsx\`, verify that the \`<Link>\` component for the "How It Works" link is correctly pointing to the \`/how-it-works\` route: \`<Link href="/how-it-works">How It Works</Link>\`
-</UPDATED_BUG_DESCRIPTION>`,
+</REPORT>`,
 
 }

@@ -592,9 +592,8 @@ function ProjectPage() {
       // Update the persistent terminal output
       setPersistentTerminalOutput(prevPersistent => [...prevPersistent, ...terminalOutput]);
 
-      // Reset WebContainer state without clearing the logs
+      // Reset WebContainer state without clearing the uploadedZip
       setWebContainerStatus({ status: '', isReady: false, isLoading: false, analysisResult: null });
-      setUploadedZip(null);
       setCompilationStatus('not-started');
       if (webContainerConsoleRef.current) {
         webContainerConsoleRef.current = null;
@@ -604,12 +603,11 @@ function ProjectPage() {
 
   const resetWebContainerState = () => {
     setWebContainerStatus({ status: '', isReady: false, isLoading: false, analysisResult: null });
-    setUploadedZip(null);
     setCompilationStatus('not-started');
     if (webContainerConsoleRef.current) {
       webContainerConsoleRef.current = null;
     }
-    // Don't clear the terminalOutput here
+    // Don't clear the uploadedZip or terminalOutput here
   };
 
   // Add this new useEffect
@@ -767,7 +765,7 @@ function ProjectPage() {
       const analysisResult = await llmService?.sendRequest(LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS, content);
 
       if (analysisResult) {
-        const updatedDescription = analysisResult.match(/<UPDATED_BUG_DESCRIPTION>([\s\S]*?)<\/UPDATED_BUG_DESCRIPTION>/)?.[1] || '';
+        const updatedDescription = analysisResult.match(/<REPORT>([\s\S]*?)<\/REPORT>/)?.[1] || '';
         
         if (editedBug) {
           const updatedBug = await updateBugReport(editedBug.id, { ...editedBug, description: updatedDescription });
@@ -799,7 +797,7 @@ function ProjectPage() {
       const result = await llmService?.sendRequest(LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS, content);
 
       if (result) {
-        const updatedDescription = result.match(/<UPDATED_BUG_DESCRIPTION>([\s\S]*?)<\/UPDATED_BUG_DESCRIPTION>/)?.[1] || '';
+        const updatedDescription = result.match(/<REPORT>([\s\S]*?)<\/REPORT>/)?.[1] || '';
         setAnalysisResult(updatedDescription);
         setActiveTab('results');
         // Mark the "Code Flow" task as complete
@@ -1122,7 +1120,7 @@ function ProjectPage() {
                                             : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
                                         }`}
                                       >
-                                        Events
+                                        Session
                                       </button>
                                       <button
                                         onClick={() => setActiveTab('results')}
@@ -1132,7 +1130,7 @@ function ProjectPage() {
                                             : 'bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-600'
                                         }`}
                                       >
-                                        Analysis
+                                        Context
                                       </button>
                                     </div>
                                     {webContainerStatus.isReady && (
@@ -1149,48 +1147,40 @@ function ProjectPage() {
                                   <div className="p-4">
                                     {activeTab === 'ui' ? (
                                       <div className="bg-white border border-gray-300 rounded overflow-hidden relative h-64">
-                                        {webContainerStatus.url ? (
-                                          compilationStatus === 'ready' ? (
-                                            <>
-                                              <iframe
-                                                ref={iframeRef}
-                                                src={webContainerStatus.url}
-                                                className="w-full h-full bg-white"
-                                                title="WebContainer App"
-                                                allow="cross-origin-isolated"
-                                              />
-                                              <div className="absolute top-2 right-2 flex space-x-2">
-                                                <button
-                                                  onClick={() => {
-                                                    if (iframeRef.current && webContainerStatus.url) {
-                                                      iframeRef.current.src = webContainerStatus.url;
-                                                    }
-                                                  }}
-                                                  className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
-                                                >
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                                                  </svg>
-                                                  Refresh
-                                                </button>
-                                                <button
-                                                  onClick={() => setIsFullScreen(true)}
-                                                  className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
-                                                >
-                                                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                                                  </svg>
-                                                  Start Bug Session
-                                                </button>
-                                              </div>
-                                            </>
-                                          ) : compilationStatus === 'compiling' ? (
-                                            <CompilingAnimation />
-                                          ) : (
-                                            <div className="flex items-center justify-center h-full text-gray-500">
-                                              Server is ready. Waiting for compilation to start...
+                                        {webContainerStatus.isReady ? (
+                                          <>
+                                            <iframe
+                                              ref={iframeRef}
+                                              src={webContainerStatus.url}
+                                              className="w-full h-full bg-white"
+                                              title="WebContainer App"
+                                              allow="cross-origin-isolated"
+                                            />
+                                            <div className="absolute top-2 right-2 flex space-x-2">
+                                              <button
+                                                onClick={() => {
+                                                  if (iframeRef.current && webContainerStatus.url) {
+                                                    iframeRef.current.src = webContainerStatus.url;
+                                                  }
+                                                }}
+                                                className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                                              >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                </svg>
+                                                Refresh
+                                              </button>
+                                              <button
+                                                onClick={() => setIsFullScreen(true)}
+                                                className="bg-white dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-2 py-1 text-sm rounded-md hover:bg-gray-100 dark:hover:bg-gray-600 transition-colors border border-gray-300 dark:border-gray-600 flex items-center"
+                                              >
+                                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                                </svg>
+                                                Start Bug Session
+                                              </button>
                                             </div>
-                                          )
+                                          </>
                                         ) : (
                                           <div 
                                             {...getRootProps()} 
@@ -1312,7 +1302,7 @@ function ProjectPage() {
                                       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex-grow">
                                         <div className="bg-gray-50 dark:bg-gray-700 px-4 py-3 flex justify-between items-center">
                                           <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 flex items-center">
-                                            Analysis Results
+                                            Context Gathering
                                             <LightBulbIcon className="w-5 h-5 ml-2 text-yellow-500" />
                                           </h3>
                                           <span className="text-sm text-gray-500 dark:text-gray-400">AI Generated</span>
@@ -1322,16 +1312,16 @@ function ProjectPage() {
                                             <AnalysisResultView
                                               analysisResult={analysisResult}
                                               onAccept={handleAcceptAnalysis}
-                                              onReject={handleRejectAnalysis}
+                                              // onReject={handleRejectAnalysis}
                                             />
                                           ) : (
                                             <div className="flex flex-col items-center justify-center py-12">
                                               <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                                               </svg>
-                                              <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Analysis Results Yet</p>
+                                              <p className="text-xl font-semibold text-gray-700 dark:text-gray-300 mb-2">No Info Added Yet</p>
                                               <p className="text-gray-500 dark:text-gray-400 mb-6 text-center max-w-md">
-                                                Click the button below to analyze the issue using source data. This will help identify potential leads.
+                                                Click the button below to fetch additional context about the issue from the sources.
                                               </p>
                                               <button
                                                 onClick={handleAnalyzeButtonClick}
@@ -1349,7 +1339,7 @@ function ProjectPage() {
                                                 ) : (
                                                   <>
                                                     <LightBulbIcon className="w-4 h-4 mr-2" />
-                                                    Analyze Bug
+                                                    Build Context
                                                   </>
                                                 )}
                                               </button>
@@ -1375,9 +1365,9 @@ function ProjectPage() {
                                           <TaskChip task="Ticketing" isDone={taskStatus.ticketing} />
                                           <TaskChip task="Codebase" isDone={taskStatus.codebase} />
                                           <TaskChip task="Session" isDone={taskStatus.session} />
-                                          <TaskChip task="Code Flow" isDone={taskStatus.codeFlow} isAutomated={true} />
-                                          <TaskChip task="Logs Summary" isDone={taskStatus.backendLogs} isAutomated={true} />
-                                          <TaskChip task="Data Snapshot" isDone={taskStatus.dataSnapshot} isAutomated={true} />
+                                          <TaskChip task="Context Added" isDone={taskStatus.codeFlow} isAutomated={true} />
+                                          {/* <TaskChip task="Logs Search" isDone={taskStatus.backendLogs} isAutomated={true} />
+                                          <TaskChip task="Data Snapshot" isDone={taskStatus.dataSnapshot} isAutomated={true} /> */}
                                         </div>
                                       </div>
                                   </div>

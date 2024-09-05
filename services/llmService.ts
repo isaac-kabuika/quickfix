@@ -113,22 +113,22 @@ Please respond with only the file path of the most likely entry point, enclosed 
 
     case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
       const { bugDescription, codeFiles, sessionEvents } = JSON.parse(content);
-      return `Analyze the following bug description, code files, and user session events to provide a summarized update to the bug description in the style of a Jira ticket. Keep the description short and precise. Focus on helping engineering with their investigation by telling them where to focus their effort.
-
-Bug Description:
+    //   return `Analyze the following bug description, code files, and user session events to provide a summarized update to the bug description in the style of a Jira ticket. Keep the description short and precise. Focus on helping engineering with their investigation by telling them where to focus their effort.
+    return `You are a tool that performs static analysis to highlight relevant files and outline code execution path. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand codes and how they ran by embedding those info into a comprehensive diagram.
+Issue Description:
 ${bugDescription}
 
 Code Files:
 ${codeFiles.map(file => `--- ${file.path} ---\n${file.content}\n`).join('\n')}
 
-User Session Events (use for understanding how the issue happened):
+User Session Events:
 ${JSON.stringify(sessionEvents, null, 2)}
 
-Please provide an update to the bug description based on the relevant code and session events. Include the path to relevant files and small snippets of relevant code. Your response should follow this format:
+Your response should follow this format:
 
-<UPDATED_BUG_DESCRIPTION>
-[Your updated bug description here in markdown format with highlights and text size changes where needed, and organized bullet points]
-</UPDATED_BUG_DESCRIPTION>`;
+<REPORT>
+[A human friendly diagram that shows the static analysis and execution story, all embedded in a flow diagram]
+</REPORT>`;
 
     default:
       throw new Error(`Unsupported request type: ${type}`);
