@@ -112,13 +112,15 @@ Please respond with only the file path of the most likely entry point, enclosed 
 <FILE_PATH>pages/_app.js</FILE_PATH>`;
 
     case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
-      const { bugDescription, codeFiles, sessionEvents } = JSON.parse(content);
-    //   return `Analyze the following bug description, code files, and user session events to provide a summarized update to the bug description in the style of a Jira ticket. Keep the description short and precise. Focus on helping engineering with their investigation by telling them where to focus their effort.
-    return `You are a tool that performs static analysis to highlight relevant files and outline code execution path. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand codes and how they ran by embedding those info into a comprehensive diagram.
+      const { bugDescription, codeFiles, sessionEvents, fileStructure } = JSON.parse(content);
+      return `You are a tool that performs static analysis to highlight relevant files and outline code execution path. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand codes and how they ran by embedding those info into a comprehensive diagram.
 Issue Description:
 ${bugDescription}
 
-Code Files:
+File Structure:
+${fileStructure}
+
+Potentially important Files:
 ${codeFiles.map(file => `--- ${file.path} ---\n${file.content}\n`).join('\n')}
 
 User Session Events:

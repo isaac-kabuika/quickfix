@@ -320,6 +320,7 @@ function ProjectPage() {
     bugDescription: string;
     codeFiles: { path: string; content: string }[];
     sessionEvents: any[];
+    fileStructure: string;
   } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [showAnalysisResultPopup, setShowAnalysisResultPopup] = useState(false);
@@ -755,11 +756,18 @@ function ProjectPage() {
         details: event.details || {}
       }));
 
+      // Get the file structure from the WebContainer
+      let fileStructure = '';
+      if (webContainerConsoleRef.current && webContainerConsoleRef.current.webcontainer) {
+        fileStructure = await webContainerConsoleRef.current.getFileStructure();
+      }
+
       // Prepare the content string for the LLM request
       const content = JSON.stringify({
         bugDescription,
         codeFiles,
         sessionEvents,
+        fileStructure
       });
 
       const analysisResult = await llmService?.sendRequest(LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS, content);
@@ -825,7 +833,7 @@ function ProjectPage() {
     }
   }, [editedBug, analysisResult]);
 
-  const handleAnalyzeButtonClick = useCallback(() => {
+  const handleAnalyzeButtonClick = useCallback(async () => {
     const bugDescription = editedBug?.description || '';
     const sessionEvents = Array.from(allEvents).map(event => ({
       type: event.type,
@@ -840,7 +848,13 @@ function ProjectPage() {
       return;
     }
 
-    setAnalysisData({ bugDescription, codeFiles: uploadedCodeFiles, sessionEvents });
+    // Get the file structure from the WebContainer
+    let fileStructure = '';
+    if (webContainerConsoleRef.current && webContainerConsoleRef.current.webcontainer) {
+      fileStructure = await webContainerConsoleRef.current.getFileStructure();
+    }
+
+    setAnalysisData({ bugDescription, codeFiles: uploadedCodeFiles, sessionEvents, fileStructure });
     setShowAnalysisConfirmation(true);
   }, [editedBug, allEvents, uploadedCodeFiles]);
 
