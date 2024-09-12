@@ -324,6 +324,7 @@ function ProjectPage() {
   } | null>(null);
   const [analysisResult, setAnalysisResult] = useState<string | null>(null);
   const [showAnalysisResultPopup, setShowAnalysisResultPopup] = useState(false);
+  const [mermaidDiagram, setMermaidDiagram] = useState<string | null>(null);
 
   // Add this new state to store the code files from the uploaded zip
   const [uploadedCodeFiles, setUploadedCodeFiles] = useState<{ path: string; content: string }[]>([]);
@@ -805,8 +806,8 @@ function ProjectPage() {
       const result = await llmService?.sendRequest(LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS, content);
 
       if (result) {
-        const updatedDescription = result.match(/<REPORT>([\s\S]*?)<\/REPORT>/)?.[1] || '';
-        setAnalysisResult(updatedDescription);
+        const mermaidContent = result.match(/<MERMAID>([\s\S]*?)<\/MERMAID>/)?.[1] || '';
+        setMermaidDiagram(mermaidContent);
         setActiveTab('results');
         // Mark the "Code Flow" task as complete
         setTaskStatus(prev => ({ ...prev, codeFlow: true }));
@@ -1322,13 +1323,14 @@ function ProjectPage() {
                                           <span className="text-sm text-gray-500 dark:text-gray-400">AI Generated</span>
                                         </div>
                                         <div className="p-4">
-                                          {analysisResult ? (
-                                            <AnalysisResultView
-                                              analysisResult={analysisResult}
-                                              onAccept={handleAcceptAnalysis}
-                                              // onReject={handleRejectAnalysis}
-                                            />
-                                          ) : (
+                                        {mermaidDiagram ? (
+            <AnalysisResultView
+              mermaidDiagram={mermaidDiagram}
+              onAccept={handleAcceptAnalysis}
+              onReject={() => {}}
+            />
+          )
+                                         : (
                                             <div className="flex flex-col items-center justify-center py-12">
                                               <svg className="w-16 h-16 text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />

@@ -111,9 +111,10 @@ ${content}
 Please respond with only the file path of the most likely entry point, enclosed in <FILE_PATH> tags. For example:
 <FILE_PATH>pages/_app.js</FILE_PATH>`;
 
-    case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
-      const { bugDescription, codeFiles, sessionEvents, fileStructure } = JSON.parse(content);
-      return `You are a tool that performs static analysis to highlight relevant files and outline code execution path. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand codes and how they ran by embedding those info into a comprehensive diagram.
+case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
+  const { bugDescription, codeFiles, sessionEvents, fileStructure } = JSON.parse(content);
+  return `You are a tool that performs static analysis to highlight relevant files and outline code execution path. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand codes and how they ran by creating a comprehensive Mermaid diagram.
+
 Issue Description:
 ${bugDescription}
 
@@ -126,15 +127,29 @@ ${codeFiles.map(file => `--- ${file.path} ---\n${file.content}\n`).join('\n')}
 User Session Events:
 ${JSON.stringify(sessionEvents, null, 2)}
 
-Your response should follow this format:
+Your response should be a Mermaid diagram that shows the static analysis and execution story. The diagram should include:
+1. The relevant files and their relationships
+2. The execution flow based on the user session events
+3. Any important function calls or state changes
 
-<REPORT>
-[A human friendly diagram that shows the static analysis and execution story, all embedded in a flow diagram]
-</REPORT>`;
+Please format your response as follows:
 
-    default:
-      throw new Error(`Unsupported request type: ${type}`);
-  }
+<MERMAID>
+graph TD
+A[Start] --> B[File 1]
+B --> C[Function Call]
+C --> D[State Change]
+D --> E[File 2]
+E --> F[End]
+
+%% Add more nodes and connections as needed
+%% Use appropriate Mermaid syntax for different diagram types if necessary
+%% Avoid using double quotes, replace with single quotes
+</MERMAID>`;
+
+default:
+  throw new Error(`Unsupported request type: ${type}`);
+}
 }
 
 export interface LLMService {
