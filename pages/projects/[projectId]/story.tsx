@@ -14,6 +14,8 @@ import JSZip from 'jszip'
 import dynamic from 'next/dynamic'
 import mermaid from 'mermaid'
 import LightningAnimation from '../../../components/LightningAnimation'
+import { Menu, Transition } from '@headlessui/react'
+import { ChevronDownIcon } from '@heroicons/react/solid'
 
 const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -88,6 +90,7 @@ function StoryPage() {
     const [showFileSelectionPopup, setShowFileSelectionPopup] = useState(false)
     const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
     const [isClient, setIsClient] = useState(false)
+    const [showCodebaseMenu, setShowCodebaseMenu] = useState(false)
 
     useEffect(() => {
         setIsClient(true)
@@ -133,6 +136,31 @@ function StoryPage() {
     const handleFileSelection = (selectedFiles: string[]) => {
         selectFiles(selectedFiles)
         setShowFileSelectionPopup(false)
+    }
+
+    const handleUseDemoRepo = async () => {
+        try {
+            const response = await fetch('/demoFiles/quickfix-main.zip')
+            const blob = await response.blob()
+            const file = new File([blob], 'quickfix-main.zip', { type: 'application/zip' })
+            
+            await uploadZip(file)
+            setCollectedData(prev => ({ ...prev, codebase: true }))
+            
+            const zip = new JSZip()
+            const contents = await zip.loadAsync(file)
+            const allFiles = Object.keys(contents.files).filter(path => !contents.files[path].dir)
+            
+            const selectedFiles = allFiles.filter(path => 
+                path.endsWith('README.md') || path.startsWith('pages/')
+            )
+            
+            setUploadedFiles(allFiles)
+            handleFileSelection(selectedFiles)
+        } catch (error) {
+            console.error('Error loading demo repo:', error)
+            setError('Failed to load demo repo')
+        }
     }
 
     if (projectLoading) return <div className="flex justify-center items-center h-screen">Loading...</div>
@@ -271,12 +299,50 @@ function StoryPage() {
                     <div className="w-[15%] p-4">
                         <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Collected Data</h2>
                         <div className="space-y-2">
-                            <div {...getRootProps()} className="cursor-pointer">
-                                <input {...getInputProps()} />
-                                <DataChip 
-                                    label="Codebase" 
-                                    isCollected={collectedData.codebase} 
-                                />
+                            <div className="flex items-center">
+                                <div {...getRootProps()} className="cursor-pointer flex-grow">
+                                    <input {...getInputProps()} />
+                                    <DataChip 
+                                        label="Codebase" 
+                                        isCollected={collectedData.codebase} 
+                                    />
+                                </div>
+                                <Menu as="div" className="relative inline-block text-left ml-2">
+                                    <div>
+                                        <Menu.Button className="inline-flex justify-center w-full px-2 py-1 text-sm font-medium text-gray-700 bg-white dark:bg-gray-700 dark:text-gray-200 rounded-md hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-opacity-75">
+                                            <ChevronDownIcon
+                                                className="w-5 h-5 text-gray-400"
+                                                aria-hidden="true"
+                                            />
+                                        </Menu.Button>
+                                    </div>
+                                    <Transition
+                                        as={React.Fragment}
+                                        enter="transition ease-out duration-100"
+                                        enterFrom="transform opacity-0 scale-95"
+                                        enterTo="transform opacity-100 scale-100"
+                                        leave="transition ease-in duration-75"
+                                        leaveFrom="transform opacity-100 scale-100"
+                                        leaveTo="transform opacity-0 scale-95"
+                                    >
+                                        <Menu.Items className="absolute right-0 w-56 mt-2 origin-top-right bg-white dark:bg-gray-700 divide-y divide-gray-100 dark:divide-gray-600 rounded-md shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                            <div className="px-1 py-1">
+                                                <Menu.Item>
+                                                    {({ active }) => (
+                                                        <button
+                                                            className={`${
+                                                                active ? 'bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-200'
+                                                            } group flex rounded-md items-center w-full px-2 py-2 text-sm`}
+                                                            onClick={handleUseDemoRepo}
+                                                        >
+                                                            Use demo repo
+                                                        </button>
+                                                    )}
+                                                </Menu.Item>
+                                            </div>
+                                        </Menu.Items>
+                                    </Transition>
+                                </Menu>
                             </div>
                             <DataChip 
                                 label="Logs" 
