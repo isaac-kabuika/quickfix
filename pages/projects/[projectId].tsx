@@ -504,7 +504,9 @@ function ProjectPage() {
 
     try {
       setTerminalOutput(prev => [...prev, { type: 'command', content: 'Initializing WebContainer...' }])
-      await webContainerConsoleRef.current.init()
+      if (webContainerConsoleRef.current) {
+        await webContainerConsoleRef.current.init()
+      }
       
       setTerminalOutput(prev => [...prev, { type: 'command', content: 'Loading project files...' }])
       const zip = new JSZip()
@@ -553,29 +555,37 @@ function ProjectPage() {
       }
 
       setTerminalOutput(prev => [...prev, { type: 'command', content: 'Initializing WebContainer with event tracker...' }])
-      await webContainerConsoleRef.current.initializeWithEventTracker(files)
+      if (webContainerConsoleRef.current) {
+        await webContainerConsoleRef.current.initializeWithEventTracker(files)
+      }
 
       // Add .env.local file if needed
       if (project && project.env) {
         setTerminalOutput(prev => [...prev, { type: 'command', content: 'Adding .env.local file...' }])
-        await webContainerConsoleRef.current.webcontainer?.fs.writeFile('.env.local', project.env)
+        if (webContainerConsoleRef.current && webContainerConsoleRef.current.webcontainer) {
+          await webContainerConsoleRef.current.webcontainer.fs.writeFile('.env.local', project.env)
+        }
         setTerminalOutput(prev => [...prev, { type: 'output', content: '.env.local file added successfully' }])
       }
 
-      webContainerConsoleRef.current.webcontainer?.on('server-ready', (port: number, url: string) => {
-        console.log('Server is ready on:', url);
-        setWebContainerStatus(prev => ({ ...prev, url, isReady: true, isLoading: false }));
-        setTerminalOutput(prev => [...prev, { type: 'output', content: `Server is ready on: ${url}` }]);
-        setCompilationStatus('compiling');
-      });
+      if (webContainerConsoleRef.current && webContainerConsoleRef.current.webcontainer) {
+        webContainerConsoleRef.current.webcontainer.on('server-ready', (port: number, url: string) => {
+          console.log('Server is ready on:', url);
+          setWebContainerStatus(prev => ({ ...prev, url, isReady: true, isLoading: false }));
+          setTerminalOutput(prev => [...prev, { type: 'output', content: `Server is ready on: ${url}` }]);
+          setCompilationStatus('compiling');
+        });
+      }
 
       // Add a new event listener for terminal output
-      webContainerConsoleRef.current.setOutputCallback((output: string) => {
-        setTerminalOutput(prev => [...prev, { type: 'output', content: output }]);
-        if (output.includes('Ready in') || output.includes('compiled successfully')) {
-          setCompilationStatus('ready');
-        }
-      });
+      if (webContainerConsoleRef.current) {
+        webContainerConsoleRef.current.setOutputCallback((output: string) => {
+          setTerminalOutput(prev => [...prev, { type: 'output', content: output }]);
+          if (output.includes('Ready in') || output.includes('compiled successfully')) {
+            setCompilationStatus('ready');
+          }
+        });
+      }
 
     } catch (error) {
       console.error('Error initializing WebContainer:', error)

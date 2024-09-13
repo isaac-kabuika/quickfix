@@ -4,7 +4,8 @@ import { useRouter } from 'next/router';
 export enum LLMRequestType {
   EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP = 'EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP',
   FIND_ENTRYPOINT_FILE = 'FIND_ENTRYPOINT_FILE',
-  ANALYZE_BUG_WITH_CODE_AND_EVENTS = 'ANALYZE_BUG_WITH_CODE_AND_EVENTS', // Add this line
+  ANALYZE_BUG_WITH_CODE_AND_EVENTS = 'ANALYZE_BUG_WITH_CODE_AND_EVENTS',
+  STORY_ANALYSIS = 'STORY_ANALYSIS', // Add this line
 }
 
 export function generatePrompt(type: LLMRequestType, content: string): string {
@@ -111,9 +112,9 @@ ${content}
 Please respond with only the file path of the most likely entry point, enclosed in <FILE_PATH> tags. For example:
 <FILE_PATH>pages/_app.js</FILE_PATH>`;
 
-case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
-  const { bugDescription, codeFiles, sessionEvents, fileStructure } = JSON.parse(content);
-  return `You are a tool that performs root cause analysis. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture.
+    case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
+      const { bugDescription, codeFiles, sessionEvents, fileStructure } = JSON.parse(content);
+      return `You are a tool that performs root cause analysis. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture.
 
 Issue Description:
 ${bugDescription}
@@ -122,7 +123,7 @@ File Structure:
 ${fileStructure}
 
 Potentially important Files:
-${codeFiles.map(file => `--- ${file.path} ---\n${file.content}\n`).join('\n')}
+${codeFiles.map((file: CodeFile) => `--- ${file.path} ---\n${file.content}\n`).join('\n')}
 
 User Session Events:
 ${JSON.stringify(sessionEvents, null, 2)}
@@ -149,9 +150,12 @@ graph TD
 %% Remember to follow the safety guidelines mentioned above
 </MERMAID>`;
 
-default:
-  throw new Error(`Unsupported request type: ${type}`);
-}
+    case LLMRequestType.STORY_ANALYSIS:
+      return content; // The content is already formatted as a prompt in the storyChat.ts file
+
+    default:
+      throw new Error(`Unsupported request type: ${type}`);
+  }
 }
 
 export interface LLMService {

@@ -48,6 +48,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
                 res.status(200).json({result})
                 break
             }
+            case(LLMRequestType.STORY_ANALYSIS):{
+                const result = SIMULATED_LLM_RESPONSE_DATA[LLMRequestType.STORY_ANALYSIS]
+                res.status(200).json({result})
+                break
+            }
             default:
                 res.status(500).json({
                      message: 'Error calling Anthropic API',
@@ -112,7 +117,11 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
       })
     }
     
-    res.status(500).json({ message: 'Error calling Anthropic API', error: error.message })
+    if (error instanceof Error) {
+      res.status(500).json({ message: 'Error calling Anthropic API', error: error.message })
+    } else {
+      res.status(500).json({ message: 'Error calling Anthropic API', error: 'An unknown error occurred' })
+    }
   }
 }
 
