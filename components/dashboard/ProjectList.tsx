@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import Link from 'next/link'
+import { PencilIcon } from '@heroicons/react/solid'
 
 interface Project {
   id: string;
@@ -135,9 +136,18 @@ const ProjectList: React.FC<ProjectListProps> = ({
                   </div>
                 </td>
                 <td className="w-1/3 px-4 py-2 border-r border-gray-200 dark:border-gray-600 align-top">
-                  <Link href={`/projects/${project.id}`} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300">
-                    {project.name}
-                  </Link>
+                  <div className="flex items-center justify-between">
+                    <Link href={`/projects/${project.id}`} className="text-primary-600 hover:text-primary-800 dark:text-primary-400 dark:hover:text-primary-300">
+                      {project.name}
+                    </Link>
+                    <Link
+                      href={`/projects/${project.id}/story`}
+                      className="text-gray-400 hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <PencilIcon className="h-5 w-5" />
+                    </Link>
+                  </div>
                 </td>
                 <td className="w-2/3 px-4 py-2 text-gray-500 dark:text-gray-400 border-r border-gray-200 dark:border-gray-600 align-top">
                   {project.github_repo}
