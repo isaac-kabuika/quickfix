@@ -73,7 +73,7 @@ For the Mermaid diagram, please follow these guidelines:
 4. Stick to basic Mermaid syntax and avoid complex features that might not be universally supported.
 5. Use subgraphs for grouping related nodes if necessary, but keep the syntax simple.
 6. Limit the use of styling to basic fill and stroke colors.
-7. Sanitize the names to remove/replace special characters.
+7. Sanitize the names in the mermaid diagram to remove/replace special characters like parentheses, etc.
 
 Please format your response as follows:
 
