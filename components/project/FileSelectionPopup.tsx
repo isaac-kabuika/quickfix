@@ -1,16 +1,21 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 interface FileSelectionPopupProps {
   files: string[];
+  selectedFiles: string[];
   onConfirm: (selectedFiles: string[]) => void;
   onCancel: () => void;
 }
 
-const FileSelectionPopup: React.FC<FileSelectionPopupProps> = ({ files, onConfirm, onCancel }) => {
-  const [selectedFiles, setSelectedFiles] = useState<string[]>([]);
+const FileSelectionPopup: React.FC<FileSelectionPopupProps> = ({ files, selectedFiles, onConfirm, onCancel }) => {
+  const [localSelectedFiles, setLocalSelectedFiles] = useState<string[]>(selectedFiles);
+
+  useEffect(() => {
+    setLocalSelectedFiles(selectedFiles);
+  }, [selectedFiles]);
 
   const handleSubmit = () => {
-    onConfirm(selectedFiles);
+    onConfirm(localSelectedFiles);
   };
 
   return (
@@ -23,12 +28,12 @@ const FileSelectionPopup: React.FC<FileSelectionPopupProps> = ({ files, onConfir
               <input
                 type="checkbox"
                 id={file}
-                checked={selectedFiles.includes(file)}
+                checked={localSelectedFiles.includes(file)}
                 onChange={(e) => {
                   if (e.target.checked) {
-                    setSelectedFiles([...selectedFiles, file]);
+                    setLocalSelectedFiles([...localSelectedFiles, file]);
                   } else {
-                    setSelectedFiles(selectedFiles.filter((f) => f !== file));
+                    setLocalSelectedFiles(localSelectedFiles.filter((f) => f !== file));
                   }
                 }}
                 className="mr-2"

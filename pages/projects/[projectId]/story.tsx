@@ -91,6 +91,8 @@ function StoryPage() {
     const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
     const [isClient, setIsClient] = useState(false)
     const [showCodebaseMenu, setShowCodebaseMenu] = useState(false)
+    const [selectedFileCount, setSelectedFileCount] = useState(0)
+    const [selectedFiles, setSelectedFiles] = useState<string[]>([])
 
     useEffect(() => {
         setIsClient(true)
@@ -135,7 +137,13 @@ function StoryPage() {
 
     const handleFileSelection = (selectedFiles: string[]) => {
         selectFiles(selectedFiles)
+        setSelectedFiles(selectedFiles)
+        setSelectedFileCount(selectedFiles.length)
         setShowFileSelectionPopup(false)
+    }
+
+    const handleShowSelectedFiles = () => {
+        setShowFileSelectionPopup(true)
     }
 
     const handleUseDemoRepo = async () => {
@@ -303,7 +311,7 @@ function StoryPage() {
                                 <div {...getRootProps()} className="cursor-pointer flex-grow">
                                     <input {...getInputProps()} />
                                     <DataChip 
-                                        label="Codebase" 
+                                        label={`Codebase${selectedFileCount > 0 ? ` (${selectedFileCount} files)` : ''}`}
                                         isCollected={collectedData.codebase} 
                                     />
                                 </div>
@@ -339,6 +347,19 @@ function StoryPage() {
                                                         </button>
                                                     )}
                                                 </Menu.Item>
+                                                <Menu.Item>
+                                                    {({ active }) => (
+                                                        <button
+                                                            className={`${
+                                                                active ? 'bg-gray-100 dark:bg-gray-600 text-gray-900 dark:text-gray-100' : 'text-gray-700 dark:text-gray-200'
+                                                            } group flex rounded-md items-center w-full px-2 py-2 text-sm`}
+                                                            onClick={handleShowSelectedFiles}
+                                                            disabled={selectedFileCount === 0}
+                                                        >
+                                                            Selected files
+                                                        </button>
+                                                    )}
+                                                </Menu.Item>
                                             </div>
                                         </Menu.Items>
                                     </Transition>
@@ -356,6 +377,7 @@ function StoryPage() {
             {showFileSelectionPopup && (
                 <FileSelectionPopup
                     files={uploadedFiles}
+                    selectedFiles={selectedFiles}
                     onConfirm={handleFileSelection}
                     onCancel={() => setShowFileSelectionPopup(false)}
                 />
