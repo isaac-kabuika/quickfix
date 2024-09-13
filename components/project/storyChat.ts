@@ -64,7 +64,13 @@ ${codeContent}
 
 Your response should include two parts:
 1. A comprehensive Mermaid diagram that shows the root cause analysis in the form of a story that follows the issue trail and relates it to the app architecture.
-2. A detailed, succinct root-cause story that explains the issue, its origin, and how it manifests in the application, in at most 3 paragraphs.
+2. A detailed, well-structured root-cause story that explains the issue, its origin, and how it manifests in the application, in a quick-read format. Format this story in Markdown, using the following guidelines:
+   - Use headers (##, ###) to separate main sections
+   - Use bullet points or numbered lists for step-by-step explanations
+   - Use code blocks (\`\`\`) for any code snippets or file paths
+   - Use bold and italic text for emphasis
+   - Use blockquotes (>) for important notes or summaries
+   - Use horizontal rules (---) to separate major sections if needed
 
 For the Mermaid diagram, please follow these guidelines:
 1. Use single quotes (') instead of double quotes (") for text containing spaces or special characters.
@@ -73,7 +79,7 @@ For the Mermaid diagram, please follow these guidelines:
 4. Stick to basic Mermaid syntax and avoid complex features that might not be universally supported.
 5. Use subgraphs for grouping related nodes if necessary, but keep the syntax simple.
 6. Limit the use of styling to basic fill and stroke colors.
-7. Sanitize the names in the mermaid diagram to remove/replace special characters like parentheses, etc.
+7. Sanitize the names in the mermaid diagram to remove/replace special characters like parentheses, brackets, etc.
 
 Please format your response as follows:
 
@@ -83,7 +89,7 @@ graph TD
 </MERMAID>
 
 <ROOT_CAUSE_STORY>
-Detailed root-cause story with no filler-words goes here...
+Detailed root-cause story in rich Markdown format goes here...
 </ROOT_CAUSE_STORY>`;
 
       const response = await axios.post('/api/llm', { type: 'STORY_ANALYSIS', content: prompt });

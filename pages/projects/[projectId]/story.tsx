@@ -6,11 +6,14 @@ import ProtectedRoute from '../../../components/auth/ProtectedRoute'
 import { useProject } from '../../../store/hooks/useProject'
 import { useStoryChat, Message } from '../../../components/project/storyChat'
 import ReactMarkdown from 'react-markdown'
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
+import { tomorrow } from 'react-syntax-highlighter/dist/cjs/styles/prism'
 import { useDropzone } from 'react-dropzone'
 import FileSelectionPopup from '../../../components/project/FileSelectionPopup'
 import JSZip from 'jszip'
 import dynamic from 'next/dynamic'
 import mermaid from 'mermaid'
+import LightningAnimation from '../../../components/LightningAnimation'
 
 const Mermaid: React.FC<{ chart: string }> = ({ chart }) => {
   const ref = useRef<HTMLDivElement>(null);
@@ -171,14 +174,48 @@ function StoryPage() {
                             <h2 className="text-lg font-semibold mb-4 text-gray-800 dark:text-gray-200">Story</h2>
                             {messages.map((message) => (
                                 <div key={message.id} className={`mb-4 ${message.role === 'user' ? 'text-right' : 'text-left'}`}>
-                                    <div className={`inline-block p-2 rounded-lg ${message.role === 'user' ? 'bg-blue-500 text-white' : 'bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>
-                                        <ReactMarkdown>{message.content}</ReactMarkdown>
+                                    <div className={`inline-block p-2 rounded-lg ${
+                                        message.role === 'user' 
+                                            ? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200' 
+                                            : 'text-gray-800 dark:text-gray-200'
+                                    }`}>
+                                        <ReactMarkdown
+                                            components={{
+                                                code({node, inline, className, children, ...props}) {
+                                                    const match = /language-(\w+)/.exec(className || '')
+                                                    return !inline && match ? (
+                                                        <SyntaxHighlighter
+                                                            style={tomorrow}
+                                                            language={match[1]}
+                                                            PreTag="div"
+                                                            {...props}
+                                                        >
+                                                            {String(children).replace(/\n$/, '')}
+                                                        </SyntaxHighlighter>
+                                                    ) : (
+                                                        <code className={className} {...props}>
+                                                            {children}
+                                                        </code>
+                                                    )
+                                                },
+                                                h2: ({node, ...props}) => <h2 className="text-xl font-bold mt-4 mb-2" {...props} />,
+                                                h3: ({node, ...props}) => <h3 className="text-lg font-semibold mt-3 mb-1" {...props} />,
+                                                p: ({node, ...props}) => <p className="mb-2" {...props} />,
+                                                ul: ({node, ...props}) => <ul className="list-disc pl-5 mb-2" {...props} />,
+                                                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mb-2" {...props} />,
+                                                li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                                                blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-gray-300 pl-4 italic my-2" {...props} />,
+                                                hr: ({node, ...props}) => <hr className="my-4 border-t border-gray-300" {...props} />,
+                                            }}
+                                        >
+                                            {message.content}
+                                        </ReactMarkdown>
                                     </div>
                                 </div>
                             ))}
                             {isLoading && (
-                                <div className="text-center text-gray-500 dark:text-gray-400">
-                                    Thinking...
+                                <div className="flex justify-center">
+                                    <LightningAnimation />
                                 </div>
                             )}
                         </div>
