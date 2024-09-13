@@ -6,3 +6,33 @@ html, body {
   @apply bg-background-light dark:bg-background-dark text-text-light dark:text-text-dark;
   min-height: 100vh;
 }
+.mermaid-diagram {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  overflow: auto;
+  padding: 20px;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Ensure text is readable */
+.mermaid-diagram .label {
+  font-weight: 500;
+}
+
+/* Style node rectangles */
+.mermaid-diagram rect {
+  rx: 8px; /* Rounded corners */
+  ry: 8px;
+  stroke-width: 2px;
+}
+
+/* Style edges */
+.mermaid-diagram .edgePath path {
+  stroke-width: 2px;
+}

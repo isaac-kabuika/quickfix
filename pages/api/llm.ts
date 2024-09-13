@@ -235,24 +235,25 @@ function MyApp({ Component, pageProps }: AppProps) {
 
 export default MyApp
 </UPDATED_CONTENT>`,
-[LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS]:`<REPORT>
-### Issue: "Page not found" error when navigating to "/how-it-works"
+[LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS]:`<MERMAID>
+graph TD
+    User["User clicks 'How It Works' link on the homepage"]-->HowItWorksLink["Link click triggers client-side navigation"]
+    HowItWorksLink-->NextRouter["Next.js Router handles the navigation"]
+    NextRouter-.->PageNotFoundError["Page not found error"]
+    PageNotFoundError-->Status404["404 status code returned"]
+    Status404-->ErrorComponent["Error component (pages/404.tsx) rendered"]
+    ErrorComponent-->RenderHeader["Renders header with app icon and title"]
+    RenderHeader-->Style["Applies styles from globals.css"]
+    ErrorComponent-->RenderContent["Renders content with error message"]
+    RenderContent-->Style
+    ErrorComponent-->RenderFooter["Renders footer with copyright notice"]
+    RenderFooter-->Style
 
-Based on the provided code and session events, the issue seems to be related to the client-side code for the "/how-it-works" page not being correctly loaded or bundled.
-
-The session events show:
-
-- A user clicked on the "How It Works" link on the home page (\`/\` route)
-- An error occurred indicating that the script for the \`/how-it-works\` page failed to load: \`Error: Failed to load script: /_next/static/chunks/pages/how-it-works.js\`
-
-The code files do not include a \`pages/how-it-works.tsx\` file, which suggests that this page was not correctly added or configured in the Next.js application.
-
-Potential steps to investigate and fix the issue:
-
-- **Verify the existence of \`pages/how-it-works.tsx\`**: Check if the file exists and contains the expected code for the "How It Works" page content.
-- **Check the Next.js build process**: Ensure that the Next.js build process is correctly bundling and including the \`how-it-works\` page in the output. Look for any build errors or warnings related to this page.
-- **Review the routing configuration**: Confirm that the routing configuration in \`next.config.js\` (if present) is correct and includes the \`/how-it-works\` route.
-- **Check the link component**: In \`pages/index.tsx\`, verify that the \`<Link>\` component for the "How It Works" link is correctly pointing to the \`/how-it-works\` route: \`<Link href="/how-it-works">How It Works</Link>\`
-</REPORT>`,
+    subgraph Files
+        PageNotFoundError-.->NextConfig["next.config.js - Next.js configuration"]
+        Status404-->FileRouting["File-based routing in Next.js"]
+        FileRouting-->NotFoundPage["pages/404.tsx - Page not found component"]
+    end
+</MERMAID>`,
 
 }

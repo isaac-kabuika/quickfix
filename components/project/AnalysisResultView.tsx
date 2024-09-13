@@ -10,12 +10,41 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
   const [svg, setSvg] = useState<string>('');
 
   useEffect(() => {
-    mermaid.initialize({ startOnLoad: true });
+    mermaid.initialize({ 
+      startOnLoad: true,
+      theme: 'default',
+      flowchart: {
+        nodeSpacing: 50,
+        rankSpacing: 100,
+        curve: 'basis',
+        htmlLabels: true,
+      },
+      fontSize: 16,
+    });
+
     const renderChart = async () => {
       if (ref.current && typeof window !== 'undefined') {
         try {
-          const { svg } = await mermaid.render('mermaid-svg', chart);
-          setSvg(svg);
+          const modifiedChart = chart.replace(/graph LR/, 'graph TD');
+          // Escape double quotes in the chart string
+          const escapedChart = modifiedChart//.replace(/"/g, '\\"');
+          const { svg } = await mermaid.render('mermaid-svg', escapedChart);
+          
+          const parser = new DOMParser();
+          const svgDoc = parser.parseFromString(svg, 'image/svg+xml');
+          const svgElement = svgDoc.documentElement;
+          
+          const viewBox = svgElement.getAttribute('viewBox')?.split(' ').map(Number);
+          if (viewBox) {
+            const scale = 1.5;
+            const newWidth = viewBox[2] * scale;
+            const newHeight = viewBox[3] * scale;
+            svgElement.setAttribute('width', `${newWidth}`);
+            svgElement.setAttribute('height', `${newHeight}`);
+            svgElement.setAttribute('style', `max-width: 100%; height: auto;`);
+          }
+          
+          setSvg(svgElement.outerHTML);
         } catch (error) {
           console.error('Error rendering Mermaid chart:', error);
           setSvg('<p>Error rendering chart</p>');
@@ -25,7 +54,13 @@ const Mermaid: React.FC<MermaidProps> = ({ chart }) => {
     renderChart();
   }, [chart]);
 
-  return <div ref={ref} dangerouslySetInnerHTML={{ __html: svg }} />;
+  return (
+    <div 
+      ref={ref} 
+      dangerouslySetInnerHTML={{ __html: svg }} 
+      className="mermaid-diagram"
+    />
+  );
 };
 
 interface AnalysisResultViewProps {

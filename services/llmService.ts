@@ -113,7 +113,7 @@ Please respond with only the file path of the most likely entry point, enclosed 
 
 case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
   const { bugDescription, codeFiles, sessionEvents, fileStructure } = JSON.parse(content);
-  return `You are a tool that performs static analysis to highlight relevant files and outline code execution path. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand codes and how they ran by creating a comprehensive Mermaid diagram.
+  return `You are a tool that performs root cause analysis. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture.
 
 Issue Description:
 ${bugDescription}
@@ -127,24 +127,26 @@ ${codeFiles.map(file => `--- ${file.path} ---\n${file.content}\n`).join('\n')}
 User Session Events:
 ${JSON.stringify(sessionEvents, null, 2)}
 
-Your response should be a Mermaid diagram that shows the static analysis and execution story. The diagram should include:
-1. The relevant files and their relationships
-2. The execution flow based on the user session events
-3. Any important function calls or state changes
+Your response should be a comprehensive Mermaid diagram that shows the root cause analysis in the form of a story that follows the issue trail and relates it to the app architecture.
+The diagram should be good enough to inform on when, where, why, and (in details) how the issue happened; in that order.
+The diagram should use colors to highlight different parts.
 
-Please format your response as follows:
+When creating the Mermaid diagram, please follow these guidelines to ensure safe and error-free rendering:
+
+1. Use single quotes (') instead of double quotes (") for text containing spaces or special characters.
+2. For node IDs, use alphanumeric characters without spaces. For node text, enclose in square brackets [].
+3. Avoid using special characters in node IDs or edge labels.
+4. Stick to basic Mermaid syntax and avoid complex features that might not be universally supported.
+5. Use subgraphs for grouping related nodes if necessary, but keep the syntax simple.
+6. Limit the use of styling to basic fill and stroke colors.
+
+Your response should only include the mermaid code and nothing else. Everything should be communicated through the diagram. Please format your response as follows:
 
 <MERMAID>
 graph TD
-A[Start] --> B[File 1]
-B --> C[Function Call]
-C --> D[State Change]
-D --> E[File 2]
-E --> F[End]
-
-%% Add more nodes and connections as needed
-%% Use appropriate Mermaid syntax for different diagram types if necessary
-%% Avoid using double quotes, replace with single quotes
+%% graph details go here
+%% Use full sentences and plain English to name, detail, and explain the components/nodes/parts of the diagram
+%% Remember to follow the safety guidelines mentioned above
 </MERMAID>`;
 
 default:
