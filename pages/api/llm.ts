@@ -28,7 +28,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     // Log the request to the LLM
     console.log('LLM Request:', {
       type,
-      prompt: prompt.substring(0, 500) + (prompt.length > 500 ? '...' : '') // Truncate long prompts
+      prompt: prompt //prompt.substring(0, 500) + (prompt.length > 500 ? '...' : '') // Truncate long prompts
     });
 
     if(SHOULD_SIMULATE_LLM_QUERIES){

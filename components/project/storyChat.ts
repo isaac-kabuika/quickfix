@@ -51,20 +51,30 @@ export function useStoryChat() {
       const fileStructure = codeFiles.map(file => file.path).join('\n');
       const codeContent = codeFiles.map(file => `--- ${file.path} ---\n${file.content}`).join('\n\n');
 
-      const prompt = `You are a tool that performs root cause analysis. You help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture, and by providing a detailed root-cause story. You do not provide a solution.
+      const prompt = `\
+You are a tool that performs root cause analysis.
+Your first step is to understand how the codebase implements the product: use the file structure and the files to create a mental model of the product.
+Your second step is to undestand the issue: (1) what happened, (2) where in the codebase, (3) what caused it. This should strictly be based on the issue description.
+Your third step is to find potential issues in the codebase that's expressed in the product as described in the Issue Description: be strict.
+Your fourth step is to isolate the most likely issue based on details from the issue descsription, or share that none was found otherwise.
+You provide no solution or suggestions, your goal is to show how, where, when, why the issue happens. You output a comprehensive Mermaid diagram and a short story to achieve that.
 
-Issue Description:
+
+<Issue Description>
 ${content}
+</Issue Description>
 
-File Structure:
+<File Structure>
 ${fileStructure}
+</File Structure>
 
-Potentially important Files:
+<Available Files>
 ${codeContent}
+</Available Files>
 
 Your response should include two parts:
-1. A comprehensive Mermaid diagram that shows the root cause analysis in the form of a story that follows the issue trail and relates it to the app architecture.
-2. A detailed, well-structured root-cause story that explains the issue, its origin, and how it manifests in the application, in a quick-read format, with no more than 200 words. Format this story in Markdown, using the following guidelines:
+1. A comprehensive Mermaid diagram that highlights where the issue happens.
+2. A detailed, well-structured root-cause story in a quick-read format, with no more than 200 words. Format this story in Markdown, using the following guidelines:
    - Use headers (##, ###) to separate main sections
    - Use bullet points or numbered lists for step-by-step explanations
    - Use code blocks (\`\`\`) for any code snippets or file paths
