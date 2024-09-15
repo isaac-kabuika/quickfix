@@ -29,9 +29,65 @@ module.exports = {
         'light-smooth': '0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06)',
         'light-sharp': '0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06)',
       },
+      typography: (theme) => ({
+        DEFAULT: {
+          css: {
+            'code::before': {
+              content: '""',
+            },
+            'code::after': {
+              content: '""',
+            },
+          },
+        },
+        dark: {
+          css: {
+            color: theme('colors.gray.300'),
+            a: {
+              color: theme('colors.blue.400'),
+              '&:hover': {
+                color: theme('colors.blue.300'),
+              },
+            },
+            h1: {
+              color: theme('colors.gray.300'),
+            },
+            h2: {
+              color: theme('colors.gray.300'),
+            },
+            h3: {
+              color: theme('colors.gray.300'),
+            },
+            h4: {
+              color: theme('colors.gray.300'),
+            },
+            h5: {
+              color: theme('colors.gray.300'),
+            },
+            h6: {
+              color: theme('colors.gray.300'),
+            },
+            strong: {
+              color: theme('colors.gray.300'),
+            },
+            code: {
+              color: theme('colors.gray.300'),
+            },
+            figcaption: {
+              color: theme('colors.gray.500'),
+            },
+          },
+        },
+      }),
+    },
+  },
+  variants: {
+    extend: {
+      typography: ['dark'],
     },
   },
   plugins: [
     require('@tailwindcss/forms'),
+    require('@tailwindcss/typography'),
   ],
 }

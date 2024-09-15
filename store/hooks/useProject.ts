@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react'
 import { getProject, getProjectFiles, Project } from '../../services/projectService'
-import { useAuth } from './useAuth'
+import { useAuth } from '../../contexts/AuthContext'
 
 interface ProjectFile {
   [key: string]: { content: string }
 }
+
+// Make sure the Project type includes the env field
+// If it doesn't, update it in the projectService file
 
 export function useProject(projectId: string) {
   const [project, setProject] = useState<Project | null>(null)

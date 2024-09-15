@@ -6,6 +6,7 @@ import { useAuth } from '../store/hooks/useAuth'
 import { ThemeProvider } from '../contexts/ThemeContext'
 import { useEffect, useState } from 'react'
 import { AuthProvider } from '../contexts/AuthContext'
+import 'highlight.js/styles/github.css'; // You can choose a different style
 
 function Layout({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
