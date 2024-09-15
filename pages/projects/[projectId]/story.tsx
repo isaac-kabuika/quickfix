@@ -160,7 +160,9 @@ function StoryPage() {
             const allFiles = Object.keys(contents.files).filter(path => !contents.files[path].dir)
             
             const selectedFiles = allFiles.filter(path => 
-                path.endsWith('README.md') || path.startsWith('pages/')
+                path.endsWith('README.md') || 
+                path.startsWith('quickfix-main/pages/') ||
+                path.startsWith('pages/')
             )
             
             setUploadedFiles(allFiles)
@@ -221,7 +223,7 @@ function StoryPage() {
                                                     const match = /language-(\w+)/.exec(className || '')
                                                     return !inline && match ? (
                                                         <SyntaxHighlighter
-                                                            style={tomorrow}
+                                                            style={tomorrow as any}
                                                             language={match[1]}
                                                             PreTag="div"
                                                             {...props}

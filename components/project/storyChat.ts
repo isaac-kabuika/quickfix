@@ -51,7 +51,7 @@ export function useStoryChat() {
       const fileStructure = codeFiles.map(file => file.path).join('\n');
       const codeContent = codeFiles.map(file => `--- ${file.path} ---\n${file.content}`).join('\n\n');
 
-      const prompt = `You are a tool that performs root cause analysis. You help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture, and by providing a detailed root-cause story.
+      const prompt = `You are a tool that performs root cause analysis. You help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture, and by providing a detailed root-cause story. You do not provide a solution.
 
 Issue Description:
 ${content}
@@ -64,7 +64,7 @@ ${codeContent}
 
 Your response should include two parts:
 1. A comprehensive Mermaid diagram that shows the root cause analysis in the form of a story that follows the issue trail and relates it to the app architecture.
-2. A detailed, well-structured root-cause story that explains the issue, its origin, and how it manifests in the application, in a quick-read format. Format this story in Markdown, using the following guidelines:
+2. A detailed, well-structured root-cause story that explains the issue, its origin, and how it manifests in the application, in a quick-read format, with no more than 200 words. Format this story in Markdown, using the following guidelines:
    - Use headers (##, ###) to separate main sections
    - Use bullet points or numbered lists for step-by-step explanations
    - Use code blocks (\`\`\`) for any code snippets or file paths
@@ -80,6 +80,7 @@ For the Mermaid diagram, please follow these guidelines:
 5. Use subgraphs for grouping related nodes if necessary, but keep the syntax simple.
 6. Limit the use of styling to basic fill and stroke colors.
 7. Sanitize the names in the mermaid diagram to remove/replace special characters like parentheses, brackets, etc.
+8. Only use "end" top mark the end of subgraphs, not the main graph.
 
 Please format your response as follows:
 
