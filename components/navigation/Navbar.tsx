@@ -85,8 +85,8 @@ export default function Navbar() {
       <div className="container mx-auto flex justify-between items-center">
         {!user && (
           <Link href="/" className="flex items-center">
-            <Image src="/images/app-icon.svg" alt="QuickFix AI" width={32} height={32} className="mr-2" />
-            <span className="text-2xl font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">QuickFix AI</span>
+            <Image src="/images/app-icon.svg" alt="Docstrail" width={32} height={32} className="mr-2" />
+            <span className="text-2xl font-bold text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 transition-colors">Docstrail</span>
           </Link>
         )}
         <div className="flex items-center ml-auto space-x-4">
