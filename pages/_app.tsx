@@ -30,7 +30,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </main>
         <footer className="bg-background-light dark:bg-background-dark py-4 text-center text-gray-400">
-          © 2024 QuickFix AI. All rights reserved.
+          © 2024 Docstrail All rights reserved.
         </footer>
       </div>
     </div>
