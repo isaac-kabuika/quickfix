@@ -5,7 +5,8 @@ export enum LLMRequestType {
   EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP = 'EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP',
   FIND_ENTRYPOINT_FILE = 'FIND_ENTRYPOINT_FILE',
   ANALYZE_BUG_WITH_CODE_AND_EVENTS = 'ANALYZE_BUG_WITH_CODE_AND_EVENTS',
-  STORY_ANALYSIS = 'STORY_ANALYSIS', // Add this line
+  STORY_ANALYSIS = 'STORY_ANALYSIS',
+  IDENTIFY_RELEVANT_FILES = 'IDENTIFY_RELEVANT_FILES', // Add this line
 }
 
 export function generatePrompt(type: LLMRequestType, content: string): string {
@@ -152,6 +153,38 @@ graph TD
 
     case LLMRequestType.STORY_ANALYSIS:
       return content; // The content is already formatted as a prompt in the storyChat.ts file
+
+    case LLMRequestType.IDENTIFY_RELEVANT_FILES:
+      return `
+You are a tool that identifies relevant files for a root cause analysis.
+Your task is to analyze the issue description and the file structure to determine which files are likely part of the issue trail.
+
+<Issue Description>
+${content}
+</Issue Description>
+
+<File Structure>
+${content}
+</File Structure>
+
+Based on the issue description and the file structure, identify the files that are most likely relevant to the issue.
+Output your response in the following JSON format:
+
+{
+  "relevantFiles": [
+    {
+      "path": "path/to/file1",
+      "reason": "Brief explanation of why this file is relevant"
+    },
+    {
+      "path": "path/to/file2",
+      "reason": "Brief explanation of why this file is relevant"
+    }
+  ]
+}
+
+Limit your selection to the most relevant files (usually 3-5 files).
+`;
 
     default:
       throw new Error(`Unsupported request type: ${type}`);
