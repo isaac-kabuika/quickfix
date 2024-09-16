@@ -101,7 +101,7 @@ For the Mermaid diagram, please follow these guidelines:
 6. The syntax  A-->|"1. action"|B["B name"] should become A-->|"(1) action"|B["B name"] for any number.
 7. Node names should be defined using only square brackets: e.g., A["Node name"]
 8. Use subgraphs for grouping related nodes if necessary, but keep the syntax simple.
-9. Only use "end" at the end of subgraphs, not at the end of the main graph.
+9. Never use 'end' at the end of the graph, ('end' is only for subgraph).
 10. Make sure that Subgraph titles don't conflict with node titles.
 
 Please format your response as follows:
@@ -117,9 +117,11 @@ Detailed root-cause story in rich Markdown format goes here...
     `,
     parseResponse: (result: string) => {
       const mermaidMatch = result.match(/<MERMAID>([\s\S]*?)<\/MERMAID>/);
+      const mermaidGraph = mermaidMatch ? mermaidMatch[1].trim() : null;
+      const sanitizedMermaidGraph = mermaidGraph?.split('<br>').join(' ').split('<br/>').join(' ');
       const storyMatch = result.match(/<ROOT_CAUSE_STORY>([\s\S]*?)<\/ROOT_CAUSE_STORY>/);
       return {
-        mermaidGraph: mermaidMatch ? mermaidMatch[1].trim() : null,
+        mermaidGraph: sanitizedMermaidGraph,
         story: storyMatch ? storyMatch[1].trim() : null,
       };
     },
