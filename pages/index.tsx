@@ -51,7 +51,7 @@ export default function Home() {
                 </svg>
               </Link>
               <Link href="/how-it-works" className="bg-white hover:bg-gray-200 text-black font-bold py-3 px-6 rounded-full transition-colors">
-                See Demo
+                Watch Demo
               </Link>
             </div>
           ) : (
