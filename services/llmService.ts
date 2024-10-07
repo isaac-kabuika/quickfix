@@ -5,7 +5,8 @@ export enum LLMRequestType {
   EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP = 'EVENT_TRACKER_INJECTION_TO_CUSTOMER_NEXTJS_APP',
   FIND_ENTRYPOINT_FILE = 'FIND_ENTRYPOINT_FILE',
   ANALYZE_BUG_WITH_CODE_AND_EVENTS = 'ANALYZE_BUG_WITH_CODE_AND_EVENTS',
-  STORY_ANALYSIS = 'STORY_ANALYSIS', // Add this line
+  STORY_ANALYSIS = 'STORY_ANALYSIS',
+  IDENTIFY_RELEVANT_FILES = 'IDENTIFY_RELEVANT_FILES', // Add this line
 }
 
 export function generatePrompt(type: LLMRequestType, content: string): string {
@@ -114,7 +115,8 @@ Please respond with only the file path of the most likely entry point, enclosed 
 
     case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
       const { bugDescription, codeFiles, sessionEvents, fileStructure } = JSON.parse(content);
-      return `You are a tool that performs root cause analysis. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture.
+      // return `You are a tool that performs root cause analysis. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture.
+      return `You are a tool that performs analysis and provides solutions. You help understand the issue and solution by creating a comprehensive Mermaid diagram that follows the issue trail and solution and relates it to the app architecture.
 
 Issue Description:
 ${bugDescription}
@@ -129,6 +131,7 @@ User Session Events:
 ${JSON.stringify(sessionEvents, null, 2)}
 
 Your response should be a comprehensive Mermaid diagram that shows the root cause analysis in the form of a story that follows the issue trail and relates it to the app architecture.
+Your response should also include an implementation section that shares the codes necessary to implement the solution. 
 The diagram should be good enough to inform on when, where, why, and (in details) how the issue happened; in that order.
 The diagram should use colors to highlight different parts.
 
@@ -152,6 +155,38 @@ graph TD
 
     case LLMRequestType.STORY_ANALYSIS:
       return content; // The content is already formatted as a prompt in the storyChat.ts file
+
+    case LLMRequestType.IDENTIFY_RELEVANT_FILES:
+      return `
+You are a tool that identifies relevant files for a root cause analysis.
+Your task is to analyze the issue description and the file structure to determine which files are likely part of the issue trail.
+
+<Issue Description>
+${content}
+</Issue Description>
+
+<File Structure>
+${content}
+</File Structure>
+
+Based on the issue description and the file structure, identify the files that are most likely relevant to the issue.
+Output your response in the following JSON format:
+
+{
+  "relevantFiles": [
+    {
+      "path": "path/to/file1",
+      "reason": "Brief explanation of why this file is relevant"
+    },
+    {
+      "path": "path/to/file2",
+      "reason": "Brief explanation of why this file is relevant"
+    }
+  ]
+}
+
+Limit your selection to the most relevant files (usually 3-5 files).
+`;
 
     default:
       throw new Error(`Unsupported request type: ${type}`);

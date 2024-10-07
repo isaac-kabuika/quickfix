@@ -160,10 +160,11 @@ function StoryPage() {
             const allFiles = Object.keys(contents.files).filter(path => !contents.files[path].dir)
             
             const selectedFiles = allFiles.filter(path => 
-                path.endsWith('README.md') || 
-                path.startsWith('quickfix-main/pages/') ||
-                path.startsWith('quickfix-main/services/') ||
-                path.startsWith('quickfix-main/components/')
+                // path.endsWith('README.md') || 
+                // path.startsWith('quickfix-main/pages/') ||
+                // path.startsWith('quickfix-main/services/') ||
+                // path.startsWith('quickfix-main/components/') ||
+                path.startsWith('quickfix-main/')
             )
             
             setUploadedFiles(allFiles)
