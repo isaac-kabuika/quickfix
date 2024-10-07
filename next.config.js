@@ -17,6 +17,10 @@ const nextConfig = {
             key: 'Cross-Origin-Opener-Policy',
             value: 'same-origin',
           },
+          {
+            key: 'Cache-Control',
+            value: 'no-store, max-age=0'
+          }
         ],
       },
     ]
