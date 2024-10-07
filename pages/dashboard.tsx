@@ -173,7 +173,8 @@ function Dashboard() {
       const newProject = await createProject({
         owner_id: user.id,
         name: projectName,
-        github_repo: githubRepo
+        github_repo: githubRepo,
+        env: null  // Add this line
       });
       setProjects((prevProjects) => [...prevProjects, newProject]);
       setShowConnectPopup(false);
