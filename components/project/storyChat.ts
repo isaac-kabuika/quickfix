@@ -61,13 +61,13 @@ Limit your selection to the most relevant files (usually 3-5 files).
   {
     type: 'STORY_ANALYSIS',
     getPrompt: (content: string, fileStructure: string, codeContent: Record<string, string>, relevantFiles: any[]) => `
-You are a tool that performs root cause analysis.
+You are a tool that performs root cause analysis and shares a fix.
 Your first step is to understand how the codebase implements the product: use the file structure and the files to create a mental model of the product.
 Your second step is to undestand the issue: (1) what happened, (2) where in the codebase, (3) what caused it. This should strictly be based on the issue description.
 Your third step is to find potential issues in the codebase that could surface in the product as described in the Issue Description: be strict.
 Your fourth step is to isolate the most likely of those issues based on details from the issue descsription, or communicate that none was found otherwise.
 You never provide workarounds, solutions, or suggestions.
-Your goal is to show when, where, how, and why the issue happens - in that order. You output a comprehensive Mermaid diagram and a short story to achieve that.
+Your goal is to show when, where, how, and why the issue happens and how it can be fixed - in that order. You output a comprehensive Mermaid diagram and a short story to achieve that.
 You never include html tags (e.g., <br/>) anywhere in your output, replace with a simple space.
 
 <Issue Description>
@@ -83,8 +83,8 @@ ${relevantFiles.map(file => `--- ${file.path} ---\n${codeContent[file.path] || '
 </Relevant Files>
 
 Your response should include two parts:
-1. A comprehensive Mermaid diagram that highlights where the issue happens using colors.
-2. A detailed, well-structured root-cause story in a quick-read format, with no more than 200 words. Format this story in Markdown, using the following guidelines:
+1. A comprehensive Mermaid diagram that highlights where the issue happens using colors, and inlcudes a fix suggestion.
+2. A detailed, well-structured root-cause story in a quick-read format, which also include the codes for the fix, all with no more than 400 words. Format this story in Markdown, using the following guidelines:
    - Use headers (##, ###) to separate main sections
    - Use bullet points or numbered lists for step-by-step explanations
    - Use code blocks (\`\`\`) for any code snippets or file paths

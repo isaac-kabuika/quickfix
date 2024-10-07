@@ -2,9 +2,11 @@ import Head from 'next/head'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useAuth } from '../store/hooks/useAuth'
+import { useState } from 'react'
 
 export default function Home() {
   const { user } = useAuth()
+  const [showVideo, setShowVideo] = useState(false)
 
   return (
     <>
@@ -50,9 +52,12 @@ export default function Home() {
                   <path fillRule="evenodd" d="M10.293 3.293a1 1 0 011.414 0l6 6a1 1 0 010 1.414l-6 6a1 1 0 01-1.414-1.414L14.586 11H3a1 1 0 110-2h11.586l-4.293-4.293a1 1 0 010-1.414z" clipRule="evenodd" />
                 </svg>
               </Link>
-              <Link href="/how-it-works" className="bg-white hover:bg-gray-200 text-black font-bold py-3 px-6 rounded-full transition-colors">
+              <button
+                onClick={() => setShowVideo(true)}
+                className="bg-white hover:bg-gray-200 text-black font-bold py-3 px-6 rounded-full transition-colors"
+              >
                 Watch Demo
-              </Link>
+              </button>
             </div>
           ) : (
             <Link href="/dashboard" className="bg-black hover:bg-gray-800 text-white font-bold py-3 px-6 rounded-full transition-colors">
@@ -73,6 +78,34 @@ export default function Home() {
           </div>
         </div>
       </main>
+
+      {showVideo && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white p-4 rounded-lg shadow-lg w-full max-w-4xl">
+            <div className="flex justify-end mb-2">
+              <button
+                onClick={() => setShowVideo(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="relative" style={{ paddingBottom: '56.25%' }}>
+              <iframe 
+                className="absolute top-0 left-0 w-full h-full"
+                src="https://www.youtube.com/embed/PCYphUozhY0" 
+                title="Docstrail demo" 
+                frameBorder="0" 
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" 
+                referrerPolicy="strict-origin-when-cross-origin" 
+                allowFullScreen
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   )
 }

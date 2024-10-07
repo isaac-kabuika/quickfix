@@ -115,7 +115,8 @@ Please respond with only the file path of the most likely entry point, enclosed 
 
     case LLMRequestType.ANALYZE_BUG_WITH_CODE_AND_EVENTS:
       const { bugDescription, codeFiles, sessionEvents, fileStructure } = JSON.parse(content);
-      return `You are a tool that performs root cause analysis. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture.
+      // return `You are a tool that performs root cause analysis. You never give solutions, fixes, or suggestions on how to resolve the issue. You only help understand the issue by creating a comprehensive Mermaid diagram that follows the issue trail and relates it to the app architecture.
+      return `You are a tool that performs analysis and provides solutions. You help understand the issue and solution by creating a comprehensive Mermaid diagram that follows the issue trail and solution and relates it to the app architecture.
 
 Issue Description:
 ${bugDescription}
@@ -130,6 +131,7 @@ User Session Events:
 ${JSON.stringify(sessionEvents, null, 2)}
 
 Your response should be a comprehensive Mermaid diagram that shows the root cause analysis in the form of a story that follows the issue trail and relates it to the app architecture.
+Your response should also include an implementation section that shares the codes necessary to implement the solution. 
 The diagram should be good enough to inform on when, where, why, and (in details) how the issue happened; in that order.
 The diagram should use colors to highlight different parts.
 
