@@ -184,7 +184,7 @@ function StoryPage() {
             {/* Header */}
             <div className="bg-white dark:bg-gray-800 shadow-md flex items-center justify-between p-2 px-4 border-b border-gray-200 dark:border-gray-700">
                 <div className="flex items-center space-x-2">
-                    <Link href="/dashboard" className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center">
+                    <Link href={`/projects/${projectId}`} className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center">
                         <svg className="w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
@@ -221,7 +221,7 @@ function StoryPage() {
                                     }`}>
                                         <ReactMarkdown
                                             components={{
-                                                code({node, inline, className, children, ...props}) {
+                                                code: ({ node, inline, className, children, ...props }: any) => {
                                                     const match = /language-(\w+)/.exec(className || '')
                                                     return !inline && match ? (
                                                         <SyntaxHighlighter

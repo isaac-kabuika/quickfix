@@ -13,10 +13,26 @@ interface CodeFile {
   content: string;
 }
 
+interface RelevantFile {
+  path: string;
+  reason: string;
+}
+
+interface IdentifyRelevantFilesResult {
+  relevantFiles: RelevantFile[];
+}
+
+interface StoryAnalysisResult {
+  mermaidGraph: string | undefined;
+  story: string | null;
+}
+
+type PipelineStepResult = IdentifyRelevantFilesResult | StoryAnalysisResult;
+
 const LLM_PIPELINE = [
   {
     type: 'IDENTIFY_RELEVANT_FILES',
-    getPrompt: (content: string, fileStructure: string) => `
+    getPrompt: (content: string, fileStructure: string, codeContent: Record<string, string>, relevantFiles: any[]) => `
 You are a tool that identifies relevant files for a root cause analysis.
 Your task is to analyze the issue description and the file structure to determine which files are likely part of the issue trail.
 
@@ -166,23 +182,33 @@ export function useStoryChat() {
       const fileStructure = codeFiles.map(file => file.path).join('\n');
       const codeContent = Object.fromEntries(codeFiles.map(file => [file.path, file.content]));
 
-      let pipelineResult = { content, fileStructure, codeContent, relevantFiles: [] };
+      let pipelineResult: {
+        content: string;
+        fileStructure: string;
+        codeContent: Record<string, string>;
+        relevantFiles: RelevantFile[];
+        mermaidGraph?: string;
+        story?: string | null;
+      } = { content, fileStructure, codeContent, relevantFiles: [] };
 
       for (const step of LLM_PIPELINE) {
-        const prompt = step.type === 'IDENTIFY_RELEVANT_FILES'
-          ? step.getPrompt(pipelineResult.content, pipelineResult.fileStructure)
-          : step.getPrompt(pipelineResult.content, pipelineResult.fileStructure, pipelineResult.codeContent, pipelineResult.relevantFiles);
+        const prompt = step.getPrompt(
+          pipelineResult.content,
+          pipelineResult.fileStructure,
+          pipelineResult.codeContent,
+          pipelineResult.relevantFiles
+        );
         console.log("%%%%%:", prompt);
         const response = await axios.post('/api/llm', { type: step.type, content: prompt });
         const result = response.data.result;
-        const parsedResult = step.parseResponse(result);
+        const parsedResult = step.parseResponse(result) as PipelineStepResult;
         pipelineResult = { ...pipelineResult, ...parsedResult };
 
-        if (parsedResult.mermaidGraph) {
+        if ('mermaidGraph' in parsedResult && parsedResult.mermaidGraph) {
           setMermaidGraph(parsedResult.mermaidGraph);
         }
 
-        if (parsedResult.story) {
+        if ('story' in parsedResult && parsedResult.story) {
           const assistantMessage: Message = {
             id: (Date.now() + 1).toString(),
             role: 'assistant',
